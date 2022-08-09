@@ -6,11 +6,13 @@
 """Test ensure_adguid_itsystem."""
 from collections import ChainMap
 from collections.abc import Iterator
+from typing import Any
 from unittest.mock import AsyncMock
 from uuid import UUID
 from uuid import uuid4
 
 import pytest
+from ramodels.mo.details import ITUser as RAITUser
 from strawberry.dataloader import DataLoader
 from structlog.testing import capture_logs
 
@@ -78,6 +80,18 @@ async def load_adguid(keys: list[str]) -> list[UUID | None]:
     return [None] * len(keys)
 
 
+async def upload_itusers(keys: list[RAITUser]) -> list[Any | None]:
+    """NOOP Implementation of upload_itusers.
+
+    Args:
+        keys: List of RAITUser objects.
+
+    Return:
+        List of Nones
+    """
+    return [None] * len(keys)
+
+
 @pytest.fixture
 def dataloaders() -> Iterator[Dataloaders]:
     """Fixture to construct noop Dataloaders.
@@ -89,6 +103,7 @@ def dataloaders() -> Iterator[Dataloaders]:
         users_loader=DataLoader(load_fn=load_users),
         itsystems_loader=DataLoader(load_fn=load_itsystems),
         adguid_loader=DataLoader(load_fn=load_adguid),
+        ituser_uploader=DataLoader(load_fn=upload_itusers),
     )
     yield dataloaders
 
@@ -102,7 +117,7 @@ async def test_ensure_adguid_itsystem(
     # When no adguid_itsystem_uuid is set, we expect to look it up
     with capture_logs() as captured_logs:
         with pytest.raises(ValueError) as exc_info:
-            await ensure_adguid_itsystem(user_uuid, settings, dataloaders, AsyncMock())
+            await ensure_adguid_itsystem(user_uuid, settings, dataloaders)
     assert "Unable to find itsystem by user-key" in str(exc_info.value)
     assert captured_logs == [
         {
@@ -120,7 +135,7 @@ async def test_ensure_adguid_itsystem(
     )
     with capture_logs() as captured_logs:
         with pytest.raises(ValueError) as exc_info:
-            await ensure_adguid_itsystem(user_uuid, settings, dataloaders, AsyncMock())
+            await ensure_adguid_itsystem(user_uuid, settings, dataloaders)
     assert "Unable to find user by uuid" in str(exc_info.value)
     assert captured_logs == [
         {
@@ -148,7 +163,9 @@ async def test_ensure_adguid_itsystem(
 
     with capture_logs() as captured_logs:
         result = await ensure_adguid_itsystem(
-            user_uuid, settings, dataloaders, AsyncMock()
+            user_uuid,
+            settings,
+            dataloaders,
         )
         assert result is False
     assert captured_logs == [
@@ -174,7 +191,9 @@ async def test_ensure_adguid_itsystem(
 
     with capture_logs() as captured_logs:
         result = await ensure_adguid_itsystem(
-            user_uuid, settings, dataloaders, AsyncMock()
+            user_uuid,
+            settings,
+            dataloaders,
         )
         assert result is False
     assert captured_logs == [
@@ -192,18 +211,18 @@ async def test_ensure_adguid_itsystem(
     loader_func.return_value = [adguid]
     dataloaders.adguid_loader = DataLoader(load_fn=loader_func)
 
-    model_client = AsyncMock()
-    model_client.upload.return_value = "Response here"
+    loader_func = AsyncMock()
+    loader_func.return_value = ["RESPONSE_HERE"]
+    dataloaders.ituser_uploader = DataLoader(load_fn=loader_func)
 
     with capture_logs() as captured_logs:
         result = await ensure_adguid_itsystem(
             user_uuid,
             settings,
             dataloaders,
-            model_client,
         )
         assert result is True
-    model_client.upload.assert_called_once()
+    loader_func.assert_called_once()
     assert captured_logs == [
         {
             "event": "Creating ITUser for user",
@@ -214,7 +233,7 @@ async def test_ensure_adguid_itsystem(
         {
             "event": "Creating ITUser response",
             "log_level": "debug",
-            "response": "Response here",
+            "response": "RESPONSE_HERE",
             "user_uuid": user_uuid,
             "adguid": adguid,
         },

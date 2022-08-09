@@ -7,7 +7,6 @@ from operator import itemgetter
 from typing import Any
 from typing import Awaitable
 from typing import Callable
-from typing import cast
 from uuid import UUID
 
 from fastapi import APIRouter
@@ -41,7 +40,6 @@ def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], Awaitable[b
         ensure_adguid_itsystem,
         settings=context["user_context"]["settings"],
         dataloaders=context["user_context"]["dataloaders"],
-        model_client=context["model_client"],
     )
 
 
@@ -90,4 +88,4 @@ def create_app(**kwargs: Any) -> FastAPI:
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
-    return cast(FastAPI, fastramqpi.get_app())
+    return fastramqpi.get_app()

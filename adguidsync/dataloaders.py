@@ -10,6 +10,7 @@ from typing import Any
 from typing import AsyncIterator
 from typing import Awaitable
 from typing import Callable
+from typing import cast
 from uuid import UUID
 
 from fastramqpi.main import FastRAMQPI
@@ -20,6 +21,8 @@ from more_itertools import one
 from more_itertools import unzip
 from pydantic import BaseModel
 from pydantic import parse_obj_as
+from raclients.modelclient.mo import ModelClient
+from ramodels.mo.details import ITUser as RAITUser
 from strawberry.dataloader import DataLoader
 
 from .utils import remove_duplicates
@@ -43,6 +46,7 @@ class Dataloaders(BaseModel):
     users_loader: DataLoader
     itsystems_loader: DataLoader
     adguid_loader: DataLoader
+    ituser_uploader: DataLoader
 
 
 # pylint: disable=too-few-public-methods
@@ -206,6 +210,23 @@ async def load_adguid(
     return [cpr_to_uuid_map.get(key) for key in keys]
 
 
+# TODO: Trim down the return value here by understanding model_client
+async def upload_itusers(
+    keys: list[RAITUser],
+    model_client: ModelClient,
+) -> list[Any | None]:
+    """Uploads ITUser models via the model_client.
+
+    Args:
+        keys: List of ITUser models.
+        model_client: The ModelClient to upload via.
+
+    Return:
+        List of response.
+    """
+    return cast(list[Any | None], await model_client.upload(keys))
+
+
 @asynccontextmanager
 async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
     """Seed our dataloaders into the FastRAMQPI context.
@@ -246,7 +267,20 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         cache=False,
     )
 
-    dataloaders = Dataloaders(**graphql_dataloaders, adguid_loader=adguid_loader)
+    model_client = fastramqpi.get_context()["model_client"]
+    ituser_uploader = DataLoader(
+        load_fn=partial(
+            upload_itusers,
+            model_client=model_client,
+        ),
+        cache=False,
+    )
+
+    dataloaders = Dataloaders(
+        **graphql_dataloaders,
+        adguid_loader=adguid_loader,
+        ituser_uploader=ituser_uploader,
+    )
     fastramqpi.add_context(dataloaders=dataloaders)
 
     yield

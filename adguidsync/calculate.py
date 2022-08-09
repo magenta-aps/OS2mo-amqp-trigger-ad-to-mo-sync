@@ -6,7 +6,6 @@ from datetime import date
 from uuid import UUID
 
 import structlog
-from raclients.modelclient.mo import ModelClient
 from ramodels.mo.details import ITUser
 
 from .config import Settings
@@ -17,7 +16,6 @@ async def ensure_adguid_itsystem(
     user_uuid: UUID,
     settings: Settings,
     dataloaders: Dataloaders,
-    model_client: ModelClient,
 ) -> bool:
     """Ensure that an ADGUID IT-system exists in MO for the given user.
 
@@ -66,7 +64,6 @@ async def ensure_adguid_itsystem(
         from_date=date.today().isoformat(),
     )
     logger.info("Creating ITUser for user")
-    # TODO: Upload dataloader?
-    response = await model_client.upload([ituser])
+    response = await dataloaders.ituser_uploader.load(ituser)
     logger.debug("Creating ITUser response", response=response)
     return True
