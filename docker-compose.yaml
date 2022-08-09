@@ -49,8 +49,7 @@ services:
       LORA_URL: "http://lora:8080"
       LORA_CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
     networks:
-      - os2molan
-      - keycloak
+      - os2mo_default
     volumes:
       - type: bind
         source: ./init.config.yaml
