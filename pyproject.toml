@@ -13,15 +13,9 @@ keywords = ["os2mo", "amqp"]
 
 [tool.poetry.dependencies]
 python = "^3.10"
-structlog = "^21.5.0"
-ramqp = "^5.0.0"
 pydantic = "^1.9.0"
-raclients = "^1.2.4"
-gql = "^3.2.0"
-more-itertools = "^8.13.0"
-ra-utils = "^1.0.0"
 uvicorn = {extras = ["standard"], version = "^0.17.6"}
-prometheus-fastapi-instrumentator = "^5.8.1"
+fastramqpi = "^0.0.0"
 fastapi = "^0.78.0"
 
 [tool.poetry.dev-dependencies]
@@ -32,7 +26,6 @@ mypy = "^0.950"
 pre-commit = "^2.19.0"
 pylint-pydantic = "^0.1.4"
 requests = "^2.28.0"
-asgi-lifespan = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
