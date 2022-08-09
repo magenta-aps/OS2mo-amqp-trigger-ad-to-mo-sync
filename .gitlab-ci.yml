@@ -43,7 +43,7 @@ workflow:
 
 include:
   - project: labs/salt-automation
-    ref: faeture/48591_conventional_commits_ci
+    ref: master
     file: gitlab-ci-templates/common/conventional-commits.v1.yml
   - project: labs/salt-automation
     ref: master
