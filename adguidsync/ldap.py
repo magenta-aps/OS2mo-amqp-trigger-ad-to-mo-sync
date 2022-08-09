@@ -60,7 +60,7 @@ async def ad_connection(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         server=server_pool,
         # We always authenticate via NTLM
         user=settings.ad_domain + "\\" + settings.ad_user,
-        password=settings.ad_password,
+        password=settings.ad_password.get_secret_value(),
         authentication=NTLM,
         # Restartable means the operation is retries in case of failure
         client_strategy=RESTARTABLE,
