@@ -2,9 +2,21 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Various utilities."""
-from collections.abc import Sequence
-from typing import Any
+from collections.abc import Iterable
+from collections.abc import Iterator
+from typing import TypeVar
 
 
-def remove_duplicates(xs: Sequence[Any] | map[Any]) -> list[Any]:
-    return list(dict.fromkeys(xs))
+T = TypeVar("T")
+
+
+def remove_duplicates(iterator: Iterable[T] | Iterator[T]) -> list[T]:
+    """Remove duplicates from the input and return the result as a list.
+
+    Args:
+        iterator: Input to remove duplicated elements from.
+
+    Return:
+        Deduplicated list of results.
+    """
+    return list(dict.fromkeys(iterator))

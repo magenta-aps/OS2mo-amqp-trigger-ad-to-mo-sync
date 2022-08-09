@@ -234,6 +234,17 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "exceptiongroup"
+version = "1.0.0rc8"
+description = "Backport of PEP 654 (exception groups)"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.extras]
+test = ["pytest (>=6)"]
+
+[[package]]
 name = "fastapi"
 version = "0.78.0"
 description = "FastAPI framework, high performance, easy to learn, fast to code, ready for production"
@@ -369,6 +380,35 @@ brotli = ["brotlicffi", "brotli"]
 cli = ["click (>=8.0.0,<9.0.0)", "rich (>=10,<13)", "pygments (>=2.0.0,<3.0.0)"]
 http2 = ["h2 (>=3,<5)"]
 socks = ["socksio (>=1.0.0,<2.0.0)"]
+
+[[package]]
+name = "hypothesis"
+version = "6.54.1"
+description = "A library for property-based testing"
+category = "dev"
+optional = false
+python-versions = ">=3.7"
+
+[package.dependencies]
+attrs = ">=19.2.0"
+exceptiongroup = {version = ">=1.0.0rc8", markers = "python_version < \"3.11\""}
+sortedcontainers = ">=2.1.0,<3.0.0"
+
+[package.extras]
+all = ["black (>=19.10b0)", "click (>=7.0)", "django (>=2.2)", "dpcontracts (>=0.4)", "lark-parser (>=0.6.5)", "libcst (>=0.3.16)", "numpy (>=1.9.0)", "pandas (>=1.0)", "pytest (>=4.6)", "python-dateutil (>=1.4)", "pytz (>=2014.1)", "redis (>=3.0.0)", "rich (>=9.0.0)", "importlib-metadata (>=3.6)", "backports.zoneinfo (>=0.2.1)", "tzdata (>=2022.1)"]
+cli = ["click (>=7.0)", "black (>=19.10b0)", "rich (>=9.0.0)"]
+codemods = ["libcst (>=0.3.16)"]
+dateutil = ["python-dateutil (>=1.4)"]
+django = ["django (>=2.2)"]
+dpcontracts = ["dpcontracts (>=0.4)"]
+ghostwriter = ["black (>=19.10b0)"]
+lark = ["lark-parser (>=0.6.5)"]
+numpy = ["numpy (>=1.9.0)"]
+pandas = ["pandas (>=1.0)"]
+pytest = ["pytest (>=4.6)"]
+pytz = ["pytz (>=2014.1)"]
+redis = ["redis (>=3.0.0)"]
+zoneinfo = ["backports.zoneinfo (>=0.2.1)", "tzdata (>=2022.1)"]
 
 [[package]]
 name = "identify"
@@ -886,6 +926,14 @@ optional = false
 python-versions = ">=3.5"
 
 [[package]]
+name = "sortedcontainers"
+version = "2.4.0"
+description = "Sorted Containers -- Sorted List, Sorted Dict, Sorted Set"
+category = "dev"
+optional = false
+python-versions = "*"
+
+[[package]]
 name = "starlette"
 version = "0.19.1"
 description = "The little ASGI library that shines."
@@ -1102,7 +1150,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.10"
-content-hash = "026c40107a78da12d4d614fcde1157c64dceb77e9a7e670bf6f0c450545ecf61"
+content-hash = "9ecaab6618be677f1f9d0d75766f5228ec69e8d7de2866c53aec9637e5e84436"
 
 [metadata.files]
 aio-pika = [
@@ -1288,6 +1336,10 @@ distlib = [
     {file = "distlib-0.3.4-py2.py3-none-any.whl", hash = "sha256:6564fe0a8f51e734df6333d08b8b94d4ea8ee6b99b5ed50613f731fd4089f34b"},
     {file = "distlib-0.3.4.zip", hash = "sha256:e4b58818180336dc9c529bfb9a0b58728ffc09ad92027a3f30b7cd91e3458579"},
 ]
+exceptiongroup = [
+    {file = "exceptiongroup-1.0.0rc8-py3-none-any.whl", hash = "sha256:ab0a968e1ef769e55d9a596f4a89f7be9ffedbc9fdefdb77cc68cf5c33ce1035"},
+    {file = "exceptiongroup-1.0.0rc8.tar.gz", hash = "sha256:6990c24f06b8d33c8065cfe43e5e8a4bfa384e0358be036af9cc60b6321bd11a"},
+]
 fastapi = [
     {file = "fastapi-0.78.0-py3-none-any.whl", hash = "sha256:15fcabd5c78c266fa7ae7d8de9b384bfc2375ee0503463a6febbe3bab69d6f65"},
     {file = "fastapi-0.78.0.tar.gz", hash = "sha256:3233d4a789ba018578658e2af1a4bb5e38bdd122ff722b313666a9b2c6786a83"},
@@ -1356,6 +1408,7 @@ httpx = [
     {file = "httpx-0.23.0-py3-none-any.whl", hash = "sha256:42974f577483e1e932c3cdc3cd2303e883cbfba17fe228b0f63589764d7b9c4b"},
     {file = "httpx-0.23.0.tar.gz", hash = "sha256:f28eac771ec9eb4866d3fb4ab65abd42d38c424739e80c08d8d20570de60b0ef"},
 ]
+hypothesis = []
 identify = [
     {file = "identify-2.5.0-py2.py3-none-any.whl", hash = "sha256:3acfe15a96e4272b4ec5662ee3e231ceba976ef63fd9980ed2ce9cc415df393f"},
     {file = "identify-2.5.0.tar.gz", hash = "sha256:c83af514ea50bf2be2c4a3f2fb349442b59dc87284558ae9ff54191bff3541d2"},
@@ -1713,6 +1766,10 @@ six = [
 sniffio = [
     {file = "sniffio-1.2.0-py3-none-any.whl", hash = "sha256:471b71698eac1c2112a40ce2752bb2f4a4814c22a54a3eed3676bc0f5ca9f663"},
     {file = "sniffio-1.2.0.tar.gz", hash = "sha256:c4666eecec1d3f50960c6bdf61ab7bc350648da6c126e3cf6898d8cd4ddcd3de"},
+]
+sortedcontainers = [
+    {file = "sortedcontainers-2.4.0-py2.py3-none-any.whl", hash = "sha256:a163dcaede0f1c021485e957a39245190e74249897e2ae4b2aa38595db237ee0"},
+    {file = "sortedcontainers-2.4.0.tar.gz", hash = "sha256:25caa5a06cc30b6b83d11423433f65d1f9d76c4c6a0c90e3379eaa43b9bfdb88"},
 ]
 starlette = [
     {file = "starlette-0.19.1-py3-none-any.whl", hash = "sha256:5a60c5c2d051f3a8eb546136aa0c9399773a689595e099e0877704d5888279bf"},

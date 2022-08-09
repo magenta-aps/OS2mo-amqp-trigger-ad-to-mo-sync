@@ -16,7 +16,7 @@ variables:
   RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-amqp-trigger-adguid-sync
 
   PYTEST_COV_MODULE: adguidsync
-  PYTEST_COV_FAIL_UNDER: 0
+  PYTEST_COV_FAIL_UNDER: 100
 
   PRECOMMIT_USE_POETRY: 'true'
 
