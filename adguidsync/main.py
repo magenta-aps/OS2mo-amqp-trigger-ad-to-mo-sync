@@ -17,6 +17,7 @@ from fastapi import Query
 from fastapi import APIRouter
 from fastramqpi.main import FastRAMQPI
 from fastramqpi.context import Context
+from ra_utils.asyncio_utils import gather_with_concurrency
 
 from .config import Settings
 from .calculate import ensure_adguid_itsystem
@@ -55,7 +56,7 @@ async def update_all_employees(request: Request) -> dict[str, str]:
     result = await gql_session.execute(query)
     employee_uuids = map(UUID, map(itemgetter("uuid"), result["employees"]))
     employee_tasks = map(gen_ensure_adguid_itsystem(context), employee_uuids)
-    all_ok = all(await gather(*employee_tasks))
+    all_ok = all(await gather_with_concurrency(5, *employee_tasks))
     return {"status": "OK" if all_ok else "FAILURE"}
 
 

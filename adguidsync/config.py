@@ -69,6 +69,6 @@ class Settings(BaseSettings):
         description="UUID of the ADGUID IT-system in OS2mo, if unset falls back to bvn"
     )
     adguid_itsystem_bvn: str = Field(
-        "Active Directory",
+        "ADGUID",
         description="User-key of the ADGUID IT-system in OS2mo"
     )

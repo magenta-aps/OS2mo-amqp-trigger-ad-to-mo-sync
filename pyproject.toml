@@ -21,8 +21,8 @@ gql = "^3.3.0"
 more-itertools = "^8.13.0"
 strawberry-graphql = "^0.116.4"
 raclients = "^1.2.5"
-rautils = "^1.0.10"
 ldap3 = "^2.9.1"
+ra-utils = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"

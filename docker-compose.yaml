@@ -10,6 +10,13 @@ services:
     environment:
       AMQP_URL: "amqp://guest:guest@msg_broker:5672/"
 
+      AD_CONTROLLERS: '[{"host": "192.168.4.4"}]'
+      AD_DOMAIN: "KOMMUNE"
+      AD_USER: "AzureDiamond"
+      AD_PASSWORD: "Hunter2"
+      AD_CPR_ATTRIBUTE: "extensionAttribute3"
+      AD_SEARCH_BASE: "OU=Fiktiv kommune,DC=fiktiv,DC=net"
+
       AUTH_SERVER: "http://keycloak:8080/auth"
 
       MO_URL: "http://mo"
@@ -27,6 +34,28 @@ services:
       timeout: 5s
       retries: 3
       start_period: 30s
+    depends_on:
+      init:
+        condition: service_completed_successfully
+
+  init:
+    image: magentaaps/os2mo-init:latest
+    environment:
+      AUTH_SERVER: "http://keycloak:8080/auth"
+
+      MO_URL: "http://mo:5000"
+      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+
+      LORA_URL: "http://lora:8080"
+      LORA_CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
+    networks:
+      - os2molan
+      - keycloak
+    volumes:
+      - type: bind
+        source: ./init.config.yaml
+        target: /config/config.yml
+        read_only: true
 
 networks:
   os2mo_default:
