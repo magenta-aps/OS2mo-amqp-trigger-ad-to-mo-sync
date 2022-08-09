@@ -4,80 +4,126 @@
 """Dataloaders to bulk requests."""
 import json
 from contextlib import asynccontextmanager
-from typing import AsyncIterator
 from dataclasses import dataclass
 from functools import partial
 from operator import itemgetter
+from typing import Any
+from typing import AsyncIterator
+from typing import Awaitable
+from typing import Callable
 from uuid import UUID
 
+from fastramqpi.main import FastRAMQPI
 from gql import gql
 from gql.client import AsyncClientSession
-from strawberry.dataloader import DataLoader
-from more_itertools import unzip
+from ldap3 import Connection
 from more_itertools import one
+from more_itertools import unzip
 from pydantic import BaseModel
 from pydantic import parse_obj_as
-from pydantic import Json
-from ldap3 import Connection
-
-from fastramqpi.main import FastRAMQPI
+from strawberry.dataloader import DataLoader
 
 
 @dataclass
 class Dataloaders:
+    """Collection of program dataloaders.
+
+    Args:
+        users_loader: Loads User models from UUIDs.
+        itsystems_loader: Loads ITSystem UUIDs from user-keys.
+        adguid_loader: Loads AD GUIDs (UUIDs) from CPR numbers.
+    """
+
     users_loader: DataLoader
     itsystems_loader: DataLoader
     adguid_loader: DataLoader
 
 
+# pylint: disable=too-few-public-methods
 class ITUser(BaseModel):
+    """Pydantic submodel for the GraphQL response from load_users."""
+
     itsystem_uuid: UUID
     uuid: UUID
     user_key: str
 
 
+# pylint: disable=too-few-public-methods
 class User(BaseModel):
+    """Pydantic Model for the GraphQL response from load_users."""
+
     itusers: list[ITUser]
     cpr_no: str
     user_key: str
     uuid: UUID
 
 
-async def load_users(keys: list[UUID], graphql_session: AsyncClientSession) -> list[User]:
-    query = gql("""
-    query User(
-      $uuids: [UUID!]
-    ) {
-      employees(uuids: $uuids) {
-        objects {
-          itusers {
-            itsystem_uuid
-            uuid
-            user_key
+async def load_users(
+    keys: list[UUID], graphql_session: AsyncClientSession
+) -> list[User | None]:
+    """Loads User models from UUIDs.
+
+    Args:
+        keys: List of user UUIDs.
+        graphql_session: The GraphQL session to run queries on.
+
+    Return:
+        List of User models.
+    """
+    query = gql(
+        """
+        query User(
+          $uuids: [UUID!]
+        ) {
+          employees(uuids: $uuids) {
+            objects {
+              itusers {
+                itsystem_uuid
+                uuid
+                user_key
+              }
+              cpr_no
+              user_key
+              uuid
+            }
           }
-          cpr_no
-          user_key
-          uuid
         }
-      }
-    }
-    """)
-    result = await graphql_session.execute(query, variable_values={"uuids": list(set(map(str, keys)))})
-    users = parse_obj_as(list[User], list(map(one, map(itemgetter("objects"), result["employees"]))))
+        """
+    )
+    result = await graphql_session.execute(
+        query, variable_values={"uuids": list(set(map(str, keys)))}
+    )
+    users = parse_obj_as(
+        list[User], list(map(one, map(itemgetter("objects"), result["employees"])))
+    )
     user_map = {user.uuid: user for user in users}
     return [user_map.get(key) for key in keys]
 
 
-async def load_itsystems(keys: list[str], graphql_session: AsyncClientSession) -> list[UUID]:
+async def load_itsystems(
+    keys: list[str], graphql_session: AsyncClientSession
+) -> list[UUID | None]:
+    """Loads ITSystem UUIDs from user-keys.
+
+    Args:
+        keys: List of ITSystem user-keys.
+        graphql_session: The GraphQL session to run queries on.
+
+    Return:
+        List of ITSystem UUIDs.
+    """
     query = gql("query ITSystemsQuery { itsystems { uuid, user_key } }")
     result = await graphql_session.execute(query)
     user_keys, uuids = unzip(map(itemgetter("user_key", "uuid"), result["itsystems"]))
     uuids = map(UUID, uuids)
+    # NOTE: This assumes ITSystem user-keys are unique
     itsystems_map = dict(zip(user_keys, uuids))
     return [itsystems_map.get(key) for key in keys]
 
 
-def ad_response_to_cpr_uuid_map(ad_response: Json, cpr_attribute: str) -> dict[str, UUID]:
+def ad_response_to_cpr_uuid_map(
+    ad_response: dict[str, Any], cpr_attribute: str
+) -> dict[str, UUID]:
     """Convert our AD Response to a CPR-->UUID dictionary.
 
     Example input:
@@ -112,8 +158,9 @@ def ad_response_to_cpr_uuid_map(ad_response: Json, cpr_attribute: str) -> dict[s
     cpr_nos = map(itemgetter(cpr_attribute), users)
     guids = map(
         lambda guid_str: UUID(guid_str.strip("{}")),
-        map(itemgetter("objectGUID"), users)
+        map(itemgetter("objectGUID"), users),
     )
+    # NOTE: This assumes CPR numbers are unique
     return dict(zip(cpr_nos, guids))
 
 
@@ -122,7 +169,18 @@ async def load_adguid(
     ad_connection: Connection,
     cpr_attribute: str,
     search_base: str,
-) -> list[UUID]:
+) -> list[UUID | None]:
+    """Loads AD GUIDs (UUIDs) from CPR numbers.
+
+    Args:
+        keys: List of CPR numbers.
+        ad_connection: The AD connection to run queries on.
+        cpr_attribute: The AD field which contains the CPR Number.
+        search_base: The AD search base to use for all queries.
+
+    Return:
+        List of ADGUIDs.
+    """
     # Construct our search filter by OR'ing all CPR numbers together
     cpr_conditions = "".join(map(lambda cpr: f"({cpr_attribute}={cpr})", keys))
     search_filter = "(&(objectclass=user)(|" + cpr_conditions + "))"
@@ -131,9 +189,9 @@ async def load_adguid(
         search_base=search_base,
         search_filter=search_filter,
         # Search in the entire subtree of search_base
-        search_scope = "SUBTREE",
+        search_scope="SUBTREE",
         # Fetch only CPR and objectGUID attributes
-        attributes = [cpr_attribute, 'objectGUID'],
+        attributes=[cpr_attribute, "objectGUID"],
     )
     json_str = ad_connection.response_to_json()
     ad_response = json.loads(json_str)
@@ -144,9 +202,20 @@ async def load_adguid(
 
 @asynccontextmanager
 async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
-    # TODO: Dataloaders need to be cacheless or reset to clear cache
-    # TODO: Dataloaders need to use call_later instead of call_soon
-    graphql_loader_functions = {
+    """Seed our dataloaders into the FastRAMQPI context.
+
+    Args:
+        fastramqpi: The FastRAMQPI instance to add our dataloaders to.
+
+    Yields:
+        None.
+    """
+    # NOTE: Dataloaders should use call_later instead of call_soon within their
+    #       implementation for greater bulking performance at the cost of worse latency.
+    #       In this integration latency is not of great concern.
+    graphql_loader_functions: dict[
+        str, Callable[[list[Any], AsyncClientSession], Awaitable[Any]]
+    ] = {
         "users_loader": load_users,
         "itsystems_loader": load_itsystems,
     }
@@ -154,8 +223,7 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
     graphql_session = fastramqpi._context["graphql_session"]
     graphql_dataloaders = {
         key: DataLoader(
-            load_fn=partial(value, graphql_session=graphql_session),
-            cache=False
+            load_fn=partial(value, graphql_session=graphql_session), cache=False
         )
         for key, value in graphql_loader_functions.items()
     }
@@ -169,7 +237,7 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
             cpr_attribute=settings.ad_cpr_attribute,
             search_base=settings.ad_search_base,
         ),
-        cache=False
+        cache=False,
     )
 
     dataloaders = Dataloaders(**graphql_dataloaders, adguid_loader=adguid_loader)

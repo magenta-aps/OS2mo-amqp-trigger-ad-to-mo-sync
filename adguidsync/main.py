@@ -2,25 +2,25 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Event handling."""
-from asyncio import gather
 from functools import partial
+from operator import itemgetter
 from typing import Any
+from typing import Awaitable
 from typing import Callable
 from typing import cast
 from uuid import UUID
-from operator import itemgetter
 
-from gql import gql
-from fastapi import FastAPI
-from fastapi import Request
-from fastapi import Query
 from fastapi import APIRouter
-from fastramqpi.main import FastRAMQPI
+from fastapi import FastAPI
+from fastapi import Query
+from fastapi import Request
 from fastramqpi.context import Context
+from fastramqpi.main import FastRAMQPI
+from gql import gql
 from ra_utils.asyncio_utils import gather_with_concurrency
 
-from .config import Settings
 from .calculate import ensure_adguid_itsystem
+from .config import Settings
 from .dataloaders import seed_dataloaders
 from .ldap import ad_connection
 
@@ -28,7 +28,7 @@ from .ldap import ad_connection
 fastapi_router = APIRouter()
 
 
-def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], bool]:
+def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], Awaitable[bool]]:
     """Seed ensure_adguid_itsystem with arguments from context.
 
     Args:
@@ -69,8 +69,8 @@ async def update_employee(
 ) -> dict[str, str]:
     """Call ensure_adguid_itsystem on the provided employee."""
     context: dict[str, Any] = request.app.state.context
-    ok = await gen_ensure_adguid_itsystem(context)(uuid)
-    return {"status": "OK" if ok else "FAILURE"}
+    all_ok = await gen_ensure_adguid_itsystem(context)(uuid)
+    return {"status": "OK" if all_ok else "FAILURE"}
 
 
 def create_app(**kwargs: Any) -> FastAPI:
@@ -84,12 +84,8 @@ def create_app(**kwargs: Any) -> FastAPI:
     fastramqpi = FastRAMQPI(application_name="adguidsync", settings=settings.fastramqpi)
     fastramqpi.add_context(settings=settings)
 
-    fastramqpi.add_lifespan_manager(
-        partial(ad_connection, fastramqpi)(), 1500
-    )
-    fastramqpi.add_lifespan_manager(
-        partial(seed_dataloaders, fastramqpi)(), 2000
-    )
+    fastramqpi.add_lifespan_manager(partial(ad_connection, fastramqpi)(), 1500)
+    fastramqpi.add_lifespan_manager(partial(seed_dataloaders, fastramqpi)(), 2000)
 
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)

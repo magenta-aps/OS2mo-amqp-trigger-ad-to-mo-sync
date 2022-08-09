@@ -2,50 +2,48 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Business logic."""
-from typing import Any
-from uuid import UUID
 from datetime import date
+from uuid import UUID
+
+from raclients.modelclient.mo import ModelClient
+from ramodels.mo.details import ITUser
 
 from .config import Settings
 from .dataloaders import Dataloaders
-from more_itertools import one
-from more_itertools import only
-
-from ramodels.mo.details import ITUser
-from raclients.modelclient.mo import ModelClient
 
 
 async def ensure_adguid_itsystem(
-    user: UUID,
+    user_uuid: UUID,
     settings: Settings,
     dataloaders: Dataloaders,
     model_client: ModelClient,
-) -> None:
+) -> bool:
     """Ensure that an ADGUID IT-system exists in MO for the given user.
 
     Args:
-        user: UUID of the user to ensure existence for.
+        user_uuid: UUID of the user to ensure existence for.
 
     Returns:
         None
     """
     itsystem_uuid = settings.adguid_itsystem_uuid
     if itsystem_uuid is None:
-        itsystem_uuid = await dataloaders.itsystems_loader.load(settings.adguid_itsystem_bvn)
+        itsystem_uuid = await dataloaders.itsystems_loader.load(
+            settings.adguid_itsystem_bvn
+        )
 
-    user = await dataloaders.users_loader.load(user)
-    has_ituser = any(map(
-        lambda ituser: ituser.itsystem_uuid == itsystem_uuid,
-        user.itusers
-    ))
+    user = await dataloaders.users_loader.load(user_uuid)
+    has_ituser = any(
+        map(lambda ituser: ituser.itsystem_uuid == itsystem_uuid, user.itusers)
+    )
     if has_ituser:
         print("ITUser already exists")
-        return
+        return False
 
     adguid = await dataloaders.adguid_loader.load(user.cpr_no)
     if adguid is None:
         print("No ADGUID found!")
-        return
+        return False
 
     ituser = ITUser.from_simplified_fields(
         user_key=str(adguid),
