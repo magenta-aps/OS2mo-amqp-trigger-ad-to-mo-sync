@@ -35,6 +35,11 @@ class Dataloaders(BaseModel):
         adguid_loader: Loads AD GUIDs (UUIDs) from CPR numbers.
     """
 
+    class Config:
+        """Arbitrary types need to be allowed to have DataLoader members."""
+
+        arbitrary_types_allowed = True
+
     users_loader: DataLoader
     itsystems_loader: DataLoader
     adguid_loader: DataLoader

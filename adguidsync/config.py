@@ -69,8 +69,10 @@ class Settings(BaseSettings):
 
     adguid_itsystem_uuid: UUID | None = Field(
         None,
-        description="UUID of the ADGUID IT-system in OS2mo, if unset falls back to bvn",
+        description=(
+            "UUID of the ADGUID IT-system in OS2mo, if unset falls back to user_key"
+        ),
     )
-    adguid_itsystem_bvn: str = Field(
+    adguid_itsystem_user_key: str = Field(
         "ADGUID", description="User-key of the ADGUID IT-system in OS2mo"
     )

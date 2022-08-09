@@ -5,6 +5,7 @@
 from datetime import date
 from uuid import UUID
 
+import structlog
 from raclients.modelclient.mo import ModelClient
 from ramodels.mo.details import ITUser
 
@@ -26,25 +27,37 @@ async def ensure_adguid_itsystem(
     Returns:
         None
     """
+    logger = structlog.get_logger().bind(user_uuid=user_uuid)
+
     itsystem_uuid = settings.adguid_itsystem_uuid
+    itsystem_user_key = settings.adguid_itsystem_user_key
     if itsystem_uuid is None:
-        itsystem_uuid = await dataloaders.itsystems_loader.load(
-            settings.adguid_itsystem_bvn
-        )
+        itsystem_uuid = await dataloaders.itsystems_loader.load(itsystem_user_key)
+        if itsystem_uuid is None:
+            message = "Unable to find itsystem by user-key"
+            logger.warn(message, itsystem_user_key=itsystem_user_key)
+            raise ValueError(message)
 
     user = await dataloaders.users_loader.load(user_uuid)
+    if user is None:
+        message = "Unable to find user by uuid"
+        logger.warn(message)
+        raise ValueError(message)
+
     has_ituser = any(
         map(lambda ituser: ituser.itsystem_uuid == itsystem_uuid, user.itusers)
     )
     if has_ituser:
         # TODO: Should we verify its value?
-        print("ITUser already exists")
+        logger.info("ITUser already exists")
         return False
 
     adguid = await dataloaders.adguid_loader.load(user.cpr_no)
     if adguid is None:
-        print("No ADGUID found!")
+        logger.info("Unable to find ad user by cpr number")
         return False
+
+    logger = logger.bind(adguid=adguid)
 
     ituser = ITUser.from_simplified_fields(
         user_key=str(adguid),
@@ -52,8 +65,8 @@ async def ensure_adguid_itsystem(
         person_uuid=user.uuid,
         from_date=date.today().isoformat(),
     )
-    print(ituser)
+    logger.info("Creating ITUser for user")
     # TODO: Upload dataloader?
     response = await model_client.upload([ituser])
-    print(response)
+    logger.debug("Creating ITUser response", response=response)
     return True
