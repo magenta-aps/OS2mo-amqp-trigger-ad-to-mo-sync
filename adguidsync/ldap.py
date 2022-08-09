@@ -52,7 +52,7 @@ async def ad_connection(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
     Yields:
         None.
     """
-    settings = fastramqpi._context["user_context"]["settings"]
+    settings = fastramqpi.get_context()["user_context"]["settings"]
     servers = list(map(construct_server, settings.ad_controllers))
     # Pick the next server to use at random, discard non-active servers
     server_pool = ServerPool(servers, RANDOM, active=True, exhaust=True)

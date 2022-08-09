@@ -15,7 +15,7 @@ keywords = ["os2mo", "amqp"]
 python = "^3.10"
 pydantic = "^1.9.0"
 uvicorn = {extras = ["standard"], version = "^0.17.6"}
-fastramqpi = "^0.0.0"
+fastramqpi = "^1.0.0"
 fastapi = "^0.78.0"
 gql = "^3.3.0"
 more-itertools = "^8.13.0"

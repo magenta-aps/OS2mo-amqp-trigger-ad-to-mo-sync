@@ -50,7 +50,7 @@ def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], Awaitable[b
 )
 async def update_all_employees(request: Request) -> dict[str, Any]:
     """Call update_line_management on all org units."""
-    context: dict[str, Any] = request.app.state.context
+    context: Context = request.app.state.context
     gql_session = context["graphql_session"]
     query = gql("query EmployeeUUIDQuery { employees { uuid } }")
     result = await gql_session.execute(query)
@@ -68,7 +68,7 @@ async def update_employee(
     uuid: UUID = Query(..., description="UUID of the employee to recalculate"),
 ) -> dict[str, Any]:
     """Call ensure_adguid_itsystem on the provided employee."""
-    context: dict[str, Any] = request.app.state.context
+    context: Context = request.app.state.context
     all_ok = await gen_ensure_adguid_itsystem(context)(uuid)
     num_changes = 1 if all_ok else 0
     return {"status": "OK", "changes": num_changes}

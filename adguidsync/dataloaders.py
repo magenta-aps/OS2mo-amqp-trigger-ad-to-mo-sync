@@ -221,7 +221,7 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         "itsystems_loader": load_itsystems,
     }
 
-    graphql_session = fastramqpi._context["graphql_session"]
+    graphql_session = fastramqpi.get_context()["graphql_session"]
     graphql_dataloaders = {
         key: DataLoader(
             load_fn=partial(value, graphql_session=graphql_session), cache=False
@@ -229,8 +229,8 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         for key, value in graphql_loader_functions.items()
     }
 
-    settings = fastramqpi._context["user_context"]["settings"]
-    ad_connection = fastramqpi._context["user_context"]["ad_connection"]
+    settings = fastramqpi.get_context()["user_context"]["settings"]
+    ad_connection = fastramqpi.get_context()["user_context"]["ad_connection"]
     adguid_loader = DataLoader(
         load_fn=partial(
             load_adguid,
