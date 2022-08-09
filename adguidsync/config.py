@@ -53,7 +53,7 @@ class Settings(BaseSettings):
         ..., description="Domain to use when authenticating with the domain controller"
     )
     ad_user: str = Field(
-        ...,
+        "os2mo",
         description="Username to use when authenticating with the domain controller",
     )
     ad_password: SecretStr = Field(
