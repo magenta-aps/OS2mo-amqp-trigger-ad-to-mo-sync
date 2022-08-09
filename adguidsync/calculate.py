@@ -37,6 +37,7 @@ async def ensure_adguid_itsystem(
         map(lambda ituser: ituser.itsystem_uuid == itsystem_uuid, user.itusers)
     )
     if has_ituser:
+        # TODO: Should we verify its value?
         print("ITUser already exists")
         return False
 

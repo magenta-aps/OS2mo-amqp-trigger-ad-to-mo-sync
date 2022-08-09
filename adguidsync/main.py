@@ -48,7 +48,7 @@ def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], Awaitable[b
 @fastapi_router.post(
     "/trigger/all",
 )
-async def update_all_employees(request: Request) -> dict[str, str]:
+async def update_all_employees(request: Request) -> dict[str, Any]:
     """Call update_line_management on all org units."""
     context: dict[str, Any] = request.app.state.context
     gql_session = context["graphql_session"]
@@ -56,8 +56,8 @@ async def update_all_employees(request: Request) -> dict[str, str]:
     result = await gql_session.execute(query)
     employee_uuids = map(UUID, map(itemgetter("uuid"), result["employees"]))
     employee_tasks = map(gen_ensure_adguid_itsystem(context), employee_uuids)
-    all_ok = all(await gather_with_concurrency(5, *employee_tasks))
-    return {"status": "OK" if all_ok else "FAILURE"}
+    num_changes = sum(await gather_with_concurrency(5, *employee_tasks))
+    return {"status": "OK", "changes": num_changes}
 
 
 @fastapi_router.post(
@@ -66,11 +66,12 @@ async def update_all_employees(request: Request) -> dict[str, str]:
 async def update_employee(
     request: Request,
     uuid: UUID = Query(..., description="UUID of the employee to recalculate"),
-) -> dict[str, str]:
+) -> dict[str, Any]:
     """Call ensure_adguid_itsystem on the provided employee."""
     context: dict[str, Any] = request.app.state.context
     all_ok = await gen_ensure_adguid_itsystem(context)(uuid)
-    return {"status": "OK" if all_ok else "FAILURE"}
+    num_changes = 1 if all_ok else 0
+    return {"status": "OK", "changes": num_changes}
 
 
 def create_app(**kwargs: Any) -> FastAPI:
@@ -80,7 +81,6 @@ def create_app(**kwargs: Any) -> FastAPI:
         None
     """
     settings = Settings(**kwargs)
-    print(settings.json(indent=2))
     fastramqpi = FastRAMQPI(application_name="adguidsync", settings=settings.fastramqpi)
     fastramqpi.add_context(settings=settings)
 

@@ -9,6 +9,7 @@ from fastramqpi.config import Settings as FastRAMQPISettings
 from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import Field
+from pydantic import SecretStr
 
 
 class ServerConfig(BaseModel):
@@ -55,7 +56,7 @@ class Settings(BaseSettings):
         ...,
         description="Username to use when authenticating with the domain controller",
     )
-    ad_password: str = Field(
+    ad_password: SecretStr = Field(
         ...,
         description="Password to use when authenticating with the domain controller",
     )

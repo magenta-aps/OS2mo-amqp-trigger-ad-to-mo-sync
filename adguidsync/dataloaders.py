@@ -4,7 +4,6 @@
 """Dataloaders to bulk requests."""
 import json
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
 from functools import partial
 from operator import itemgetter
 from typing import Any
@@ -23,9 +22,11 @@ from pydantic import BaseModel
 from pydantic import parse_obj_as
 from strawberry.dataloader import DataLoader
 
+from .utils import remove_duplicates
 
-@dataclass
-class Dataloaders:
+
+# pylint: disable=too-few-public-methods
+class Dataloaders(BaseModel):
     """Collection of program dataloaders.
 
     Args:
@@ -41,7 +42,7 @@ class Dataloaders:
 
 # pylint: disable=too-few-public-methods
 class ITUser(BaseModel):
-    """Pydantic submodel for the GraphQL response from load_users."""
+    """Submodel for the GraphQL response from load_users."""
 
     itsystem_uuid: UUID
     uuid: UUID
@@ -50,7 +51,7 @@ class ITUser(BaseModel):
 
 # pylint: disable=too-few-public-methods
 class User(BaseModel):
-    """Pydantic Model for the GraphQL response from load_users."""
+    """Model for the GraphQL response from load_users."""
 
     itusers: list[ITUser]
     cpr_no: str
@@ -91,7 +92,7 @@ async def load_users(
         """
     )
     result = await graphql_session.execute(
-        query, variable_values={"uuids": list(set(map(str, keys)))}
+        query, variable_values={"uuids": remove_duplicates(map(str, keys))}
     )
     users = parse_obj_as(
         list[User], list(map(one, map(itemgetter("objects"), result["employees"])))
@@ -149,7 +150,7 @@ def ad_response_to_cpr_uuid_map(
         ```
 
     Args:
-        ad_response: The JSON-paresd response from the AD.
+        ad_response: The JSON-parsed response from the AD.
 
     Returns:
         mapping from CPR-numbers to AD GUIDs.
