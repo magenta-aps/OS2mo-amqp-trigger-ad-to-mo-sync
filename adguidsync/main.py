@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Event handling."""
+import traceback
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from functools import partial
@@ -11,10 +12,12 @@ from typing import Awaitable
 from typing import Callable
 from uuid import UUID
 
+import structlog
 from fastapi import APIRouter
 from fastapi import FastAPI
 from fastapi import Query
 from fastapi import Request
+from fastapi.responses import JSONResponse
 from fastramqpi.context import Context
 from fastramqpi.main import FastRAMQPI
 from gql import gql
@@ -28,6 +31,7 @@ from .ldap import ad_healthcheck
 from .ldap import configure_ad_connection
 
 
+logger = structlog.get_logger()
 fastapi_router = APIRouter()
 
 
@@ -104,7 +108,7 @@ def create_fastramqpi(**kwargs: Any) -> FastRAMQPI:
     """FastRAMQPI factory.
 
     Returns:
-        None
+        FastRAMQPI system.
     """
     settings = Settings(**kwargs)
     fastramqpi = FastRAMQPI(application_name="adguidsync", settings=settings.fastramqpi)
@@ -120,6 +124,17 @@ def create_fastramqpi(**kwargs: Any) -> FastRAMQPI:
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
+    # TODO: This should be in FastRAMQPI
+    @app.exception_handler(Exception)
+    @app.exception_handler(ValueError)
+    async def exception_callback(_: Request, exception: Exception) -> JSONResponse:
+        # TODO: Use structlog v22.1 for proper JSON tracebacks
+        trace = traceback.format_exc()
+        logger.exception("Uncaught exception", exception=exception, trace=trace)
+        return JSONResponse(
+            {"status": "ERROR", "info": "Uncaught exception"}, status_code=500
+        )
+
     return fastramqpi
 
 
@@ -127,7 +142,7 @@ def create_app(**kwargs: Any) -> FastAPI:
     """FastAPI application factory.
 
     Returns:
-        None
+        FastAPI application.
     """
     fastramqpi = create_fastramqpi(**kwargs)
     return fastramqpi.get_app()

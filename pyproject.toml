@@ -33,6 +33,7 @@ pre-commit = "^2.19.0"
 pylint-pydantic = "^0.1.4"
 requests = "^2.28.0"
 hypothesis = "^6.54.1"
+asgi-lifespan = "^1.0.1"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
