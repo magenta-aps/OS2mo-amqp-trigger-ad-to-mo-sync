@@ -8,6 +8,7 @@ from uuid import UUID
 from fastramqpi.config import Settings as FastRAMQPISettings
 from pydantic import BaseModel
 from pydantic import BaseSettings
+from pydantic import ConstrainedList
 from pydantic import Field
 from pydantic import SecretStr
 
@@ -33,6 +34,16 @@ class ServerConfig(BaseModel):
     timeout: int = Field(5, description="Number of seconds to wait for connection")
 
 
+class ServerList(ConstrainedList):
+    """Constrainted list for domain controllers."""
+
+    min_items = 1
+    unique_items = True
+
+    item_type = ServerConfig
+    __args__ = (ServerConfig,)
+
+
 class Settings(BaseSettings):
     """Settings for the ADGUID Sync integration."""
 
@@ -46,7 +57,7 @@ class Settings(BaseSettings):
         default_factory=FastRAMQPISettings, description="FastRAMQPI settings"
     )
 
-    ad_controllers: list[ServerConfig] = Field(
+    ad_controllers: ServerList = Field(
         ..., description="List of domain controllers to query"
     )
     ad_domain: str = Field(

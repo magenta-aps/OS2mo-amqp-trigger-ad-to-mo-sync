@@ -61,23 +61,15 @@ def test_required_settings(
         assert f"{expected}\n  field required (type=value_error.missing)" in exc_str
 
 
-def test_minimal_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_minimal_overrides(
+    load_settings_overrides: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
     """Test the minimum set of overrides that yield valid settings."""
-    overrides = {
-        "CLIENT_SECRET": "Hunter2",
-        "AD_CONTROLLERS": "[]",
-        "AD_DOMAIN": "Kommune",
-        "AD_PASSWORD": "Hunter2",
-        "AD_CPR_ATTRIBUTE": "extensionAttribute3",
-        "AD_SEARCH_BASE": "OU=Fiktiv kommune,DC=fiktiv,DC=net",
-    }
-    for key, value in overrides.items():
-        monkeypatch.setenv(key, value)
-    # At this point we can construct a settings object just fine
+    # We can construct settings here
     Settings()
 
     # Verify that removing any of the environmental variables, raises a ValidationError
-    for key, value in overrides.items():
+    for key, value in load_settings_overrides.items():
         monkeypatch.delenv(key)
         with pytest.raises(ValidationError):
             Settings()
@@ -95,20 +87,8 @@ def test_happy_path_server_config(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "host\n  field required (type=value_error.missing)" in str(excinfo.value)
 
 
-def test_happy_path(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_happy_path(settings: Settings) -> None:
     """Test that settings are parsed as expected."""
-    overrides = {
-        "CLIENT_SECRET": "Hunter2",
-        "AD_CONTROLLERS": '[{"host": "localhost"}]',
-        "AD_DOMAIN": "Kommune",
-        "AD_PASSWORD": "Hunter2",
-        "AD_CPR_ATTRIBUTE": "extensionAttribute3",
-        "AD_SEARCH_BASE": "OU=Fiktiv kommune,DC=fiktiv,DC=net",
-    }
-    for key, value in overrides.items():
-        monkeypatch.setenv(key, value)
-    settings = Settings()
-
     assert settings.fastramqpi.auth_realm == "mo"
 
     assert settings.ad_user == "os2mo"

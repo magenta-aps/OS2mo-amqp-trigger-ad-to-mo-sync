@@ -2,6 +2,8 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Event handling."""
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from functools import partial
 from operator import itemgetter
 from typing import Any
@@ -16,12 +18,14 @@ from fastapi import Request
 from fastramqpi.context import Context
 from fastramqpi.main import FastRAMQPI
 from gql import gql
+from ldap3 import Connection
 from ra_utils.asyncio_utils import gather_with_concurrency
 
 from .calculate import ensure_adguid_itsystem
 from .config import Settings
-from .dataloaders import seed_dataloaders
-from .ldap import ad_connection
+from .dataloaders import configure_dataloaders
+from .ldap import ad_healthcheck
+from .ldap import configure_ad_connection
 
 
 fastapi_router = APIRouter()
@@ -72,8 +76,32 @@ async def update_employee(
     return {"status": "OK", "changes": num_changes}
 
 
-def create_app(**kwargs: Any) -> FastAPI:
-    """FastAPI application factory.
+@asynccontextmanager
+async def open_ad_connection(ad_connection: Connection) -> AsyncIterator[None]:
+    """Open the AD connection during FastRAMQPI lifespan.
+
+    Yields:
+        None
+    """
+    with ad_connection:
+        yield
+
+
+@asynccontextmanager
+async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
+    """Seed dataloaders during FastRAMQPI lifespan.
+
+    Yields:
+        None
+    """
+    context = fastramqpi.get_context()
+    dataloaders = configure_dataloaders(context)
+    fastramqpi.add_context(dataloaders=dataloaders)
+    yield
+
+
+def create_fastramqpi(**kwargs: Any) -> FastRAMQPI:
+    """FastRAMQPI factory.
 
     Returns:
         None
@@ -82,10 +110,24 @@ def create_app(**kwargs: Any) -> FastAPI:
     fastramqpi = FastRAMQPI(application_name="adguidsync", settings=settings.fastramqpi)
     fastramqpi.add_context(settings=settings)
 
-    fastramqpi.add_lifespan_manager(partial(ad_connection, fastramqpi)(), 1500)
-    fastramqpi.add_lifespan_manager(partial(seed_dataloaders, fastramqpi)(), 2000)
+    ad_connection = configure_ad_connection(settings)
+    fastramqpi.add_context(ad_connection=ad_connection)
+    fastramqpi.add_healthcheck(name="ADConnection", healthcheck=ad_healthcheck)
+    fastramqpi.add_lifespan_manager(open_ad_connection(ad_connection), 1500)
+
+    fastramqpi.add_lifespan_manager(seed_dataloaders(fastramqpi), 2000)
 
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
+    return fastramqpi
+
+
+def create_app(**kwargs: Any) -> FastAPI:
+    """FastAPI application factory.
+
+    Returns:
+        None
+    """
+    fastramqpi = create_fastramqpi(**kwargs)
     return fastramqpi.get_app()

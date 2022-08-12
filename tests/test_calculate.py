@@ -23,27 +23,6 @@ from adguidsync.dataloaders import ITUser
 from adguidsync.dataloaders import User
 
 
-@pytest.fixture
-def settings(monkeypatch: pytest.MonkeyPatch) -> Iterator[Settings]:
-    """Fixture to construct default happy-path settings.
-
-    Yields:
-        Happy-path settings.
-    """
-    overrides = {
-        "CLIENT_SECRET": "Hunter2",
-        "AD_CONTROLLERS": "[]",
-        "AD_DOMAIN": "Kommune",
-        "AD_PASSWORD": "Hunter2",
-        "AD_CPR_ATTRIBUTE": "extensionAttribute3",
-        "AD_SEARCH_BASE": "OU=Fiktiv kommune,DC=fiktiv,DC=net",
-    }
-    for key, value in overrides.items():
-        monkeypatch.setenv(key, value)
-    settings = Settings()
-    yield settings
-
-
 async def load_itsystems(keys: list[str]) -> list[UUID | None]:
     """NOOP Implementation of load_itsystems.
 

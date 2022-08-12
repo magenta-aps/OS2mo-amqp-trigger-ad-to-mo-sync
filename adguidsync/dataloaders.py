@@ -3,17 +3,15 @@
 # SPDX-License-Identifier: MPL-2.0
 """Dataloaders to bulk requests."""
 import json
-from contextlib import asynccontextmanager
 from functools import partial
 from operator import itemgetter
 from typing import Any
-from typing import AsyncIterator
 from typing import Awaitable
 from typing import Callable
 from typing import cast
 from uuid import UUID
 
-from fastramqpi.main import FastRAMQPI
+from fastramqpi.context import Context
 from gql import gql
 from gql.client import AsyncClientSession
 from ldap3 import Connection
@@ -227,15 +225,14 @@ async def upload_itusers(
     return cast(list[Any | None], await model_client.upload(keys))
 
 
-@asynccontextmanager
-async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
-    """Seed our dataloaders into the FastRAMQPI context.
+def configure_dataloaders(context: Context) -> Dataloaders:
+    """Construct our dataloaders from the FastRAMQPI context.
 
     Args:
-        fastramqpi: The FastRAMQPI instance to add our dataloaders to.
+        context: The FastRAMQPI context to configure our dataloaders with.
 
-    Yields:
-        None.
+    Returns:
+        Dataloaders required for ensure_adguid_itsystem.
     """
     # NOTE: Dataloaders should use call_later instead of call_soon within their
     #       implementation for greater bulking performance at the cost of worse latency.
@@ -247,7 +244,7 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         "itsystems_loader": load_itsystems,
     }
 
-    graphql_session = fastramqpi.get_context()["graphql_session"]
+    graphql_session = context["graphql_session"]
     graphql_dataloaders = {
         key: DataLoader(
             load_fn=partial(value, graphql_session=graphql_session), cache=False
@@ -255,8 +252,8 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         for key, value in graphql_loader_functions.items()
     }
 
-    settings = fastramqpi.get_context()["user_context"]["settings"]
-    ad_connection = fastramqpi.get_context()["user_context"]["ad_connection"]
+    settings = context["user_context"]["settings"]
+    ad_connection = context["user_context"]["ad_connection"]
     adguid_loader = DataLoader(
         load_fn=partial(
             load_adguid,
@@ -267,7 +264,7 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         cache=False,
     )
 
-    model_client = fastramqpi.get_context()["model_client"]
+    model_client = context["model_client"]
     ituser_uploader = DataLoader(
         load_fn=partial(
             upload_itusers,
@@ -276,11 +273,8 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         cache=False,
     )
 
-    dataloaders = Dataloaders(
+    return Dataloaders(
         **graphql_dataloaders,
         adguid_loader=adguid_loader,
         ituser_uploader=ituser_uploader,
     )
-    fastramqpi.add_context(dataloaders=dataloaders)
-
-    yield

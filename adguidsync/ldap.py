@@ -2,12 +2,12 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """AD Connection handling."""
-from contextlib import asynccontextmanager
 from ssl import CERT_NONE
 from ssl import CERT_REQUIRED
-from typing import AsyncIterator
+from typing import cast
+from typing import ContextManager
 
-from fastramqpi.main import FastRAMQPI
+from fastramqpi.context import Context
 from ldap3 import Connection
 from ldap3 import NTLM
 from ldap3 import RANDOM
@@ -17,6 +17,7 @@ from ldap3 import ServerPool
 from ldap3 import Tls
 
 from .config import ServerConfig
+from .config import Settings
 
 
 def construct_server(server_config: ServerConfig) -> Server:
@@ -40,19 +41,15 @@ def construct_server(server_config: ServerConfig) -> Server:
     )
 
 
-@asynccontextmanager
-async def ad_connection(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
-    """Seed our AD connection into the FastRAMQPI context.
-
-    This context manager also opens up the AD connection.
+def configure_ad_connection(settings: Settings) -> ContextManager:
+    """Configure an AD connection.
 
     Args:
-        fastramqpi: The FastRAMQPI instance to add our ad connection to.
+        settings: The Settings instance to configure our ad connection with.
 
-    Yields:
-        None.
+    Returns:
+        ContextManager that can be opened to establish an AD connection.
     """
-    settings = fastramqpi.get_context()["user_context"]["settings"]
     servers = list(map(construct_server, settings.ad_controllers))
     # Pick the next server to use at random, discard non-active servers
     server_pool = ServerPool(servers, RANDOM, active=True, exhaust=True)
@@ -67,10 +64,17 @@ async def ad_connection(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
         # We only need to read ADGUIDs, not write anything
         read_only=True,
     )
-    connection.open()
-    if not connection.bind():
-        raise ValueError("Invalid AD credentials")
+    return cast(ContextManager, connection)
 
-    fastramqpi.add_context(ad_connection=connection)
 
-    yield
+async def ad_healthcheck(context: Context) -> bool:
+    """AD connection Healthcheck.
+
+    Args:
+        context: To lookup ad_connection in.
+
+    Returns:
+        Whether the AMQPSystem is OK.
+    """
+    ad_connection = context["user_context"]["ad_connection"]
+    return cast(bool, ad_connection.bound)
