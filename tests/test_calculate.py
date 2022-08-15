@@ -124,6 +124,18 @@ async def test_ensure_adguid_itsystem(
         }
     ]
 
+
+async def test_ensure_adguid_itsystem_user_and_ituser_found(
+    settings: Settings,
+    dataloaders: Dataloaders,
+) -> None:
+    """Test nothing happens if ituser already exists."""
+    user_uuid = uuid4()
+    adguid_it_system_uuid = uuid4()
+    settings = Settings(
+        **ChainMap(dict(adguid_itsystem_uuid=adguid_it_system_uuid), settings.dict())
+    )
+
     # When user is found, and it has the expected it-user
     loader_func = AsyncMock()
     loader_func.return_value = [
@@ -155,6 +167,18 @@ async def test_ensure_adguid_itsystem(
         }
     ]
 
+
+async def test_ensure_adguid_itsystem_user_found_ituser_not_found(
+    settings: Settings,
+    dataloaders: Dataloaders,
+) -> None:
+    """Test we want to create an ituser if it does not exists."""
+    user_uuid = uuid4()
+    adguid_it_system_uuid = uuid4()
+    settings = Settings(
+        **ChainMap(dict(adguid_itsystem_uuid=adguid_it_system_uuid), settings.dict())
+    )
+
     # When user is found, and it does not have the expected it-user
     # But we do not find the user in AD
     loader_func = AsyncMock()
@@ -183,8 +207,30 @@ async def test_ensure_adguid_itsystem(
         }
     ]
 
+
+async def test_ensure_adguid_itsystem_happy_path(
+    settings: Settings,
+    dataloaders: Dataloaders,
+) -> None:
+    """Test we create an ituser if it does not exist."""
+    user_uuid = uuid4()
+    adguid_it_system_uuid = uuid4()
+    settings = Settings(
+        **ChainMap(dict(adguid_itsystem_uuid=adguid_it_system_uuid), settings.dict())
+    )
     # When user is found, and it does not have the expected it-user
     # And we do find the user in AD
+    loader_func = AsyncMock()
+    loader_func.return_value = [
+        User(
+            itusers=[],
+            cpr_no="0101700000",
+            user_key="Fiktiv Bruger",
+            uuid=user_uuid,
+        )
+    ]
+    dataloaders.users_loader = DataLoader(load_fn=loader_func)
+
     adguid = uuid4()
     loader_func = AsyncMock()
     loader_func.return_value = [adguid]

@@ -129,7 +129,7 @@ async def test_liveness_endpoint(test_client: TestClient) -> None:
 async def test_readiness_endpoint(
     fastramqpi: FastRAMQPI, test_client: TestClient
 ) -> None:
-    """Test the liveness endpoint on our app."""
+    """Test the readiness endpoint on our app."""
     # Remove all the standard healthchecks, keeping only the non-standard ones
     healthchecks = fastramqpi.get_context()["healthchecks"]
     healthchecks = {
