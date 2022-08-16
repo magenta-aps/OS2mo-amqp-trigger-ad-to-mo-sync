@@ -5,7 +5,6 @@
 # pylint: disable=unused-argument
 # pylint: disable=protected-access
 """Test ensure_adguid_itsystem."""
-from collections.abc import AsyncIterator
 from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import AsyncMock
@@ -16,7 +15,6 @@ from uuid import UUID
 from uuid import uuid4
 
 import pytest
-from asgi_lifespan import LifespanManager
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from fastramqpi.main import FastRAMQPI
@@ -24,6 +22,7 @@ from more_itertools import one
 from structlog.testing import capture_logs
 
 from adguidsync.dataloaders import Dataloaders
+from adguidsync.main import _install_exception_handler
 from adguidsync.main import create_app
 from adguidsync.main import create_fastramqpi
 from adguidsync.main import open_ad_connection
@@ -71,17 +70,6 @@ def app(fastramqpi: FastRAMQPI) -> Iterator[FastAPI]:
         FastAPI application.
     """
     yield fastramqpi.get_app()
-
-
-@pytest.fixture
-async def lifespan_app(app: FastAPI) -> AsyncIterator[FastAPI]:
-    """Fixture to construct a FastAPI application with life-cycle management.
-
-    Yields:
-        FastAPI application.
-    """
-    async with LifespanManager(app):
-        yield app
 
 
 @pytest.fixture
@@ -224,6 +212,7 @@ async def test_update_employee_endpoint_exception(
     """Test the the update_employee endpoint handles exceptions nicely."""
     fastramqpi.add_context(settings="Whatever")
     fastramqpi.add_context(dataloaders="Whatever")
+    _install_exception_handler(fastramqpi.get_app())
 
     with patch(
         "adguidsync.main.ensure_adguid_itsystem", new_callable=AsyncMock

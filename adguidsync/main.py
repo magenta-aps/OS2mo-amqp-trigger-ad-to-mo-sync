@@ -104,6 +104,27 @@ async def seed_dataloaders(fastramqpi: FastRAMQPI) -> AsyncIterator[None]:
     yield
 
 
+def _install_exception_handler(app: FastAPI) -> None:
+    """Install FastAPI exception handler.
+
+    Args:
+        app: The app to add our exception handler to.
+
+    Returns:
+        None.
+    """
+    # TODO: This should be in FastRAMQPI
+    @app.exception_handler(Exception)
+    @app.exception_handler(ValueError)
+    async def exception_callback(_: Request, exception: Exception) -> JSONResponse:
+        # TODO: Use structlog v22.1 for proper JSON tracebacks
+        trace = traceback.format_exc()
+        logger.exception("Uncaught exception", exception=exception, trace=trace)
+        return JSONResponse(
+            {"status": "ERROR", "info": "Uncaught exception"}, status_code=500
+        )
+
+
 def create_fastramqpi(**kwargs: Any) -> FastRAMQPI:
     """FastRAMQPI factory.
 
@@ -124,16 +145,9 @@ def create_fastramqpi(**kwargs: Any) -> FastRAMQPI:
     app = fastramqpi.get_app()
     app.include_router(fastapi_router)
 
-    # TODO: This should be in FastRAMQPI
-    @app.exception_handler(Exception)
-    @app.exception_handler(ValueError)
-    async def exception_callback(_: Request, exception: Exception) -> JSONResponse:
-        # TODO: Use structlog v22.1 for proper JSON tracebacks
-        trace = traceback.format_exc()
-        logger.exception("Uncaught exception", exception=exception, trace=trace)
-        return JSONResponse(
-            {"status": "ERROR", "info": "Uncaught exception"}, status_code=500
-        )
+    @app.on_event("startup")
+    def attach_exception_handler() -> None:  # pragma: no cover
+        _install_exception_handler(app)
 
     return fastramqpi
 
