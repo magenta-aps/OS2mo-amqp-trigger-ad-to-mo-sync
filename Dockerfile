@@ -15,7 +15,7 @@ COPY poetry.lock pyproject.toml ./
 RUN poetry install --no-dev
 
 WORKDIR /opt/app
-COPY adguidsync .
+COPY ad2mosync .
 WORKDIR /opt/
 CMD [ "uvicorn", "--factory", "app.main:create_app", "--host", "0.0.0.0" ]
 

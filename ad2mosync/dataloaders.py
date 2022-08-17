@@ -52,7 +52,6 @@ class ITUser(BaseModel):
     """Submodel for the GraphQL response from load_users."""
 
     itsystem_uuid: UUID
-    uuid: UUID
     user_key: str
 
 
@@ -61,8 +60,6 @@ class User(BaseModel):
     """Model for the GraphQL response from load_users."""
 
     itusers: list[ITUser]
-    cpr_no: str
-    user_key: str
     uuid: UUID
 
 
@@ -87,11 +84,8 @@ async def load_users(
             objects {
               itusers {
                 itsystem_uuid
-                uuid
                 user_key
               }
-              cpr_no
-              user_key
               uuid
             }
           }

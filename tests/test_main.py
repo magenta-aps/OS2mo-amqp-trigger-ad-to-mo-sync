@@ -4,7 +4,7 @@
 # pylint: disable=redefined-outer-name
 # pylint: disable=unused-argument
 # pylint: disable=protected-access
-"""Test ensure_adguid_itsystem."""
+"""Test app configuration."""
 from collections.abc import Iterator
 from contextlib import contextmanager
 from unittest.mock import AsyncMock
@@ -21,12 +21,12 @@ from fastramqpi.main import FastRAMQPI
 from more_itertools import one
 from structlog.testing import capture_logs
 
-from adguidsync.dataloaders import Dataloaders
-from adguidsync.main import _install_exception_handler
-from adguidsync.main import create_app
-from adguidsync.main import create_fastramqpi
-from adguidsync.main import open_ad_connection
-from adguidsync.main import seed_dataloaders
+from ad2mosync.dataloaders import Dataloaders
+from ad2mosync.main import _install_exception_handler
+from ad2mosync.main import create_app
+from ad2mosync.main import create_fastramqpi
+from ad2mosync.main import open_ad_connection
+from ad2mosync.main import seed_dataloaders
 
 
 @pytest.fixture
@@ -105,7 +105,7 @@ async def test_root_endpoint(test_client: TestClient) -> None:
     """Test the root endpoint on our app."""
     response = test_client.get("/")
     assert response.status_code == 200
-    assert response.json() == {"name": "adguidsync"}
+    assert response.json() == {"name": "ad2mosync"}
 
 
 async def test_liveness_endpoint(test_client: TestClient) -> None:
@@ -187,12 +187,12 @@ async def test_open_ad_connection() -> None:
 async def test_update_employee_endpoint(
     success: bool, random_uuid: UUID, fastramqpi: FastRAMQPI, test_client: TestClient
 ) -> None:
-    """Test the the update_employee endpoint calls gen_ensure_adguid_itsystem."""
+    """Test the the update_employee endpoint calls gen_ensure_ad2mosynced."""
     fastramqpi.add_context(settings="Whatever")
     fastramqpi.add_context(dataloaders="Whatever")
 
     with patch(
-        "adguidsync.main.ensure_adguid_itsystem", new_callable=AsyncMock
+        "ad2mosync.main.ensure_ad2mosynced", new_callable=AsyncMock
     ) as result_mock:
         result_mock.return_value = success
 
@@ -215,7 +215,7 @@ async def test_update_employee_endpoint_exception(
     _install_exception_handler(fastramqpi.get_app())
 
     with patch(
-        "adguidsync.main.ensure_adguid_itsystem", new_callable=AsyncMock
+        "ad2mosync.main.ensure_ad2mosynced", new_callable=AsyncMock
     ) as result_mock:
         exception = ValueError("Unable to find user by uuid")
         result_mock.side_effect = exception
@@ -232,7 +232,7 @@ async def test_update_employee_endpoint_exception(
         }
         assert "Traceback" in traceback
         assert "update_employee" in traceback
-        assert "gen_ensure_adguid_itsystem" in traceback
+        assert "gen_ensure_ad2mosynced" in traceback
 
         result_mock.assert_called_with(
             random_uuid, settings="Whatever", dataloaders="Whatever"
@@ -253,7 +253,7 @@ async def test_update_no_employees_endpoint(
     fastramqpi.get_context()["graphql_session"] = graphql_session
 
     with patch(
-        "adguidsync.main.ensure_adguid_itsystem", new_callable=AsyncMock
+        "ad2mosync.main.ensure_ad2mosynced", new_callable=AsyncMock
     ) as result_mock:
         result_mock.return_value = True
 
@@ -281,7 +281,7 @@ async def test_update_all_employees_endpoint(
     fastramqpi.get_context()["graphql_session"] = graphql_session
 
     with patch(
-        "adguidsync.main.ensure_adguid_itsystem", new_callable=AsyncMock
+        "ad2mosync.main.ensure_ad2mosynced", new_callable=AsyncMock
     ) as result_mock:
         result_mock.return_value = True
 

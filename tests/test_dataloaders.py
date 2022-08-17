@@ -15,10 +15,10 @@ from uuid import uuid4
 import pytest
 from more_itertools import one
 
-from adguidsync.config import Settings
-from adguidsync.dataloaders import configure_dataloaders
-from adguidsync.dataloaders import Dataloaders
-from adguidsync.dataloaders import User
+from ad2mosync.config import Settings
+from ad2mosync.dataloaders import configure_dataloaders
+from ad2mosync.dataloaders import Dataloaders
+from ad2mosync.dataloaders import User
 
 
 @pytest.fixture

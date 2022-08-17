@@ -24,7 +24,7 @@ from gql import gql
 from ldap3 import Connection
 from ra_utils.asyncio_utils import gather_with_concurrency
 
-from .calculate import ensure_adguid_itsystem
+from .calculate import ensure_ad2mosynced
 from .config import Settings
 from .dataloaders import configure_dataloaders
 from .ldap import ad_healthcheck
@@ -35,7 +35,7 @@ logger = structlog.get_logger()
 fastapi_router = APIRouter()
 
 
-def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], Awaitable[bool]]:
+def gen_ensure_ad2mosynced(context: Context) -> Callable[[UUID], Awaitable[bool]]:
     """Seed ensure_adguid_itsystem with arguments from context.
 
     Args:
@@ -45,7 +45,7 @@ def gen_ensure_adguid_itsystem(context: Context) -> Callable[[UUID], Awaitable[b
         ensure_adguid_itsystem that only takes an UUID.
     """
     return partial(
-        ensure_adguid_itsystem,
+        ensure_ad2mosynced,
         settings=context["user_context"]["settings"],
         dataloaders=context["user_context"]["dataloaders"],
     )
@@ -61,7 +61,7 @@ async def update_all_employees(request: Request) -> dict[str, Any]:
     query = gql("query EmployeeUUIDQuery { employees { uuid } }")
     result = await gql_session.execute(query)
     employee_uuids = map(UUID, map(itemgetter("uuid"), result["employees"]))
-    employee_tasks = map(gen_ensure_adguid_itsystem(context), employee_uuids)
+    employee_tasks = map(gen_ensure_ad2mosynced(context), employee_uuids)
     num_changes = sum(await gather_with_concurrency(5, *employee_tasks))
     return {"status": "OK", "changes": num_changes}
 
@@ -75,7 +75,7 @@ async def update_employee(
 ) -> dict[str, Any]:
     """Call ensure_adguid_itsystem on the provided employee."""
     context: Context = request.app.state.context
-    all_ok = await gen_ensure_adguid_itsystem(context)(uuid)
+    all_ok = await gen_ensure_ad2mosynced(context)(uuid)
     num_changes = 1 if all_ok else 0
     return {"status": "OK", "changes": num_changes}
 
@@ -132,7 +132,7 @@ def create_fastramqpi(**kwargs: Any) -> FastRAMQPI:
         FastRAMQPI system.
     """
     settings = Settings(**kwargs)
-    fastramqpi = FastRAMQPI(application_name="adguidsync", settings=settings.fastramqpi)
+    fastramqpi = FastRAMQPI(application_name="ad2mosync", settings=settings.fastramqpi)
     fastramqpi.add_context(settings=settings)
 
     ad_connection = configure_ad_connection(settings)

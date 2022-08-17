@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=redefined-outer-name
 # pylint: disable=duplicate-code
-"""Test ensure_adguid_itsystem."""
+"""Test ensure_ad2mosynced."""
 from collections import ChainMap
 from collections.abc import Iterator
 from typing import Any
@@ -16,11 +16,11 @@ from ramodels.mo.details import ITUser as RAITUser
 from strawberry.dataloader import DataLoader
 from structlog.testing import capture_logs
 
-from adguidsync.calculate import ensure_adguid_itsystem
-from adguidsync.config import Settings
-from adguidsync.dataloaders import Dataloaders
-from adguidsync.dataloaders import ITUser
-from adguidsync.dataloaders import User
+from ad2mosync.calculate import ensure_ad2mosynced
+from ad2mosync.config import Settings
+from ad2mosync.dataloaders import Dataloaders
+from ad2mosync.dataloaders import ITUser
+from ad2mosync.dataloaders import User
 
 
 async def load_itsystems(keys: list[str]) -> list[UUID | None]:
@@ -87,7 +87,7 @@ def dataloaders() -> Iterator[Dataloaders]:
     yield dataloaders
 
 
-async def test_ensure_adguid_itsystem(
+async def test_ensure_ad2mosync(
     settings: Settings,
     dataloaders: Dataloaders,
 ) -> None:
@@ -96,7 +96,7 @@ async def test_ensure_adguid_itsystem(
     # When no adguid_itsystem_uuid is set, we expect to look it up
     with capture_logs() as captured_logs:
         with pytest.raises(ValueError) as exc_info:
-            await ensure_adguid_itsystem(user_uuid, settings, dataloaders)
+            await ensure_ad2mosynced(user_uuid, settings, dataloaders)
     assert "Unable to find itsystem by user-key" in str(exc_info.value)
     assert captured_logs == [
         {
@@ -114,7 +114,7 @@ async def test_ensure_adguid_itsystem(
     )
     with capture_logs() as captured_logs:
         with pytest.raises(ValueError) as exc_info:
-            await ensure_adguid_itsystem(user_uuid, settings, dataloaders)
+            await ensure_ad2mosynced(user_uuid, settings, dataloaders)
     assert "Unable to find user by uuid" in str(exc_info.value)
     assert captured_logs == [
         {
@@ -125,12 +125,13 @@ async def test_ensure_adguid_itsystem(
     ]
 
 
-async def test_ensure_adguid_itsystem_user_and_ituser_found(
+async def test_ensure_ad2mosync_user_and_ituser_found(
     settings: Settings,
     dataloaders: Dataloaders,
 ) -> None:
     """Test nothing happens if ituser already exists."""
     user_uuid = uuid4()
+    ad_guid = uuid4()
     adguid_it_system_uuid = uuid4()
     settings = Settings(
         **ChainMap(dict(adguid_itsystem_uuid=adguid_it_system_uuid), settings.dict())
@@ -141,34 +142,31 @@ async def test_ensure_adguid_itsystem_user_and_ituser_found(
     loader_func.return_value = [
         User(
             itusers=[
-                ITUser(
-                    itsystem_uuid=adguid_it_system_uuid, uuid=uuid4(), user_key="ADGUID"
-                )
+                ITUser(itsystem_uuid=adguid_it_system_uuid, user_key=str(ad_guid))
             ],
-            cpr_no="0101700000",
-            user_key="Fiktiv Bruger",
             uuid=user_uuid,
         )
     ]
     dataloaders.users_loader = DataLoader(load_fn=loader_func)
 
     with capture_logs() as captured_logs:
-        result = await ensure_adguid_itsystem(
+        result = await ensure_ad2mosynced(
             user_uuid,
             settings,
             dataloaders,
         )
-        assert result is False
+        assert result is True
     assert captured_logs == [
         {
-            "event": "ITUser already exists",
+            "event": "Synchronizing user",
             "log_level": "info",
             "user_uuid": user_uuid,
+            "adguid": str(ad_guid),
         }
     ]
 
 
-async def test_ensure_adguid_itsystem_user_found_ituser_not_found(
+async def test_ensure_ad2mosync_user_found_ituser_not_found(
     settings: Settings,
     dataloaders: Dataloaders,
 ) -> None:
@@ -185,15 +183,13 @@ async def test_ensure_adguid_itsystem_user_found_ituser_not_found(
     loader_func.return_value = [
         User(
             itusers=[],
-            cpr_no="0101700000",
-            user_key="Fiktiv Bruger",
             uuid=user_uuid,
         )
     ]
     dataloaders.users_loader = DataLoader(load_fn=loader_func)
 
     with capture_logs() as captured_logs:
-        result = await ensure_adguid_itsystem(
+        result = await ensure_ad2mosynced(
             user_uuid,
             settings,
             dataloaders,
@@ -201,65 +197,66 @@ async def test_ensure_adguid_itsystem_user_found_ituser_not_found(
         assert result is False
     assert captured_logs == [
         {
-            "event": "Unable to find ad user by cpr number",
+            "event": "Unable to find ADGUID itsystem on user",
             "log_level": "info",
             "user_uuid": user_uuid,
         }
     ]
 
 
-async def test_ensure_adguid_itsystem_happy_path(
-    settings: Settings,
-    dataloaders: Dataloaders,
-) -> None:
-    """Test we create an ituser if it does not exist."""
-    user_uuid = uuid4()
-    adguid_it_system_uuid = uuid4()
-    settings = Settings(
-        **ChainMap(dict(adguid_itsystem_uuid=adguid_it_system_uuid), settings.dict())
-    )
-    # When user is found, and it does not have the expected it-user
-    # And we do find the user in AD
-    loader_func = AsyncMock()
-    loader_func.return_value = [
-        User(
-            itusers=[],
-            cpr_no="0101700000",
-            user_key="Fiktiv Bruger",
-            uuid=user_uuid,
-        )
-    ]
-    dataloaders.users_loader = DataLoader(load_fn=loader_func)
-
-    adguid = uuid4()
-    loader_func = AsyncMock()
-    loader_func.return_value = [adguid]
-    dataloaders.adguid_loader = DataLoader(load_fn=loader_func)
-
-    loader_func = AsyncMock()
-    loader_func.return_value = ["RESPONSE_HERE"]
-    dataloaders.ituser_uploader = DataLoader(load_fn=loader_func)
-
-    with capture_logs() as captured_logs:
-        result = await ensure_adguid_itsystem(
-            user_uuid,
-            settings,
-            dataloaders,
-        )
-        assert result is True
-    loader_func.assert_called_once()
-    assert captured_logs == [
-        {
-            "event": "Creating ITUser for user",
-            "log_level": "info",
-            "user_uuid": user_uuid,
-            "adguid": adguid,
-        },
-        {
-            "event": "Creating ITUser response",
-            "log_level": "debug",
-            "response": "RESPONSE_HERE",
-            "user_uuid": user_uuid,
-            "adguid": adguid,
-        },
-    ]
+#
+# async def test_ensure_ad2mosynced_happy_path(
+#    settings: Settings,
+#    dataloaders: Dataloaders,
+# ) -> None:
+#    """Test we create an ituser if it does not exist."""
+#    user_uuid = uuid4()
+#    adguid_it_system_uuid = uuid4()
+#    settings = Settings(
+#        **ChainMap(dict(adguid_itsystem_uuid=adguid_it_system_uuid), settings.dict())
+#    )
+#    # When user is found, and it does not have the expected it-user
+#    # And we do find the user in AD
+#    loader_func = AsyncMock()
+#    loader_func.return_value = [
+#        User(
+#            itusers=[],
+#            cpr_no="0101700000",
+#            user_key="Fiktiv Bruger",
+#            uuid=user_uuid,
+#        )
+#    ]
+#    dataloaders.users_loader = DataLoader(load_fn=loader_func)
+#
+#    adguid = uuid4()
+#    loader_func = AsyncMock()
+#    loader_func.return_value = [adguid]
+#    dataloaders.adguid_loader = DataLoader(load_fn=loader_func)
+#
+#    loader_func = AsyncMock()
+#    loader_func.return_value = ["RESPONSE_HERE"]
+#    dataloaders.ituser_uploader = DataLoader(load_fn=loader_func)
+#
+#    with capture_logs() as captured_logs:
+#        result = await ensure_ad2mosynced(
+#            user_uuid,
+#            settings,
+#            dataloaders,
+#        )
+#        assert result is True
+#    loader_func.assert_called_once()
+#    assert captured_logs == [
+#        {
+#            "event": "Creating ITUser for user",
+#            "log_level": "info",
+#            "user_uuid": user_uuid,
+#            "adguid": adguid,
+#        },
+#        {
+#            "event": "Creating ITUser response",
+#            "log_level": "debug",
+#            "response": "RESPONSE_HERE",
+#            "user_uuid": user_uuid,
+#            "adguid": adguid,
+#        },
+#    ]

@@ -9,8 +9,8 @@ import pytest
 from more_itertools import one
 from pydantic import ValidationError
 
-from adguidsync.config import ServerConfig
-from adguidsync.config import Settings
+from ad2mosync.config import ServerConfig
+from ad2mosync.config import Settings
 
 
 @pytest.mark.parametrize(
