@@ -10,7 +10,7 @@ from itertools import tee
 import pytest
 from hypothesis import given
 
-from adguidsync.utils import remove_duplicates
+from ad2mosync.utils import remove_duplicates
 
 
 @pytest.mark.parametrize(

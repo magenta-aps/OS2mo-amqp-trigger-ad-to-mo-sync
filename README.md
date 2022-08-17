@@ -3,9 +3,9 @@ SPDX-FileCopyrightText: 2021 Magenta ApS <https://magenta.dk>
 SPDX-License-Identifier: MPL-2.0
 -->
 
-# ADGUID Sync
+# AD-to-MO Sync
 
-This repository contains an OS2mo AMQP Trigger that writes ADGUID to an IT system.
+This repository contains an OS2mo AMQP Trigger that synchronizes data from AD to MO.
 
 ## Usage
 
@@ -21,19 +21,19 @@ docker-compose up -d
 You should see the following:
 ```
 [info     ] Starting metrics server        port=8000
-[info     ] Register called                function=adguidsync_callback routing_key=org_unit.org_unit.*
+[info     ] Register called                function=ad2mosync_callback routing_key=org_unit.org_unit.*
 [info     ] Starting AMQP system
 [info     ] Establishing AMQP connection   host=msg_broker path=/ port=5672 scheme=amqp user=guest
 [info     ] Creating AMQP channel
 [info     ] Attaching AMQP exchange to channel exchange=os2mo
-[info     ] Declaring unique message queue function=adguidsync_callback queue_name=os2mo-amqp-trigger-adguidsync_callback
-[info     ] Starting message listener      function=adguidsync_callback
-[info     ] Binding routing keys           function=adguidsync_callback
-[info     ] Binding routing-key            function=adguidsync_callback routing_key=org_unit.org_unit.*
+[info     ] Declaring unique message queue function=ad2mosync_callback queue_name=os2mo-amqp-trigger-ad2mosync_callback
+[info     ] Starting message listener      function=ad2mosync_callback
+[info     ] Binding routing keys           function=ad2mosync_callback
+[info     ] Binding routing-key            function=ad2mosync_callback routing_key=org_unit.org_unit.*
 ```
 After which each message will add:
 ```
-[debug    ] Received message               function=adguidsync_callback routing_key=org_unit.org_unit.edit
+[debug    ] Received message               function=ad2mosync_callback routing_key=org_unit.org_unit.edit
 [info     ] Message received               object_type=org_unit payload=... request_type=edit service_type=org_unit
 ```
 At which point metrics should be available at `localhost:8000`, and ADGUIDs should be synced.
@@ -48,7 +48,7 @@ At which point metrics should be available at `localhost:8000`, and ADGUIDs shou
 
 1. Clone the repository:
 ```
-git clone git@git.magenta.dk:rammearkitektur/os2mo-triggers/os2mo-amqp-trigger-adguid-sync.git
+git clone git@git.magenta.dk:rammearkitektur/os2mo-triggers/OS2mo-amqp-trigger-ad-to-mo-sync.git
 ```
 
 2. Install all dependencies:

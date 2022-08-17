@@ -13,9 +13,9 @@ variables:
   IMAGE_SHA: ${CI_REGISTRY_IMAGE}:${CI_COMMIT_SHA}
 
   RELEASE_REGISTRY: docker.io
-  RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-amqp-trigger-adguid-sync
+  RELEASE_REGISTRY_IMAGE: index.docker.io/magentaaps/os2mo-amqp-trigger-ad-to-mo-sync
 
-  PYTEST_COV_MODULE: adguidsync
+  PYTEST_COV_MODULE: ad2mosync
   PYTEST_COV_FAIL_UNDER: 100
 
   PRECOMMIT_USE_POETRY: 'true'

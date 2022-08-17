@@ -4,7 +4,7 @@
 
 version: "3.9"
 services:
-  adguidsync:
+  ad2mosync:
     build: .
     command: ["uvicorn", "--factory", "app.main:create_app", "--host", "0.0.0.0", "--reload"]
     environment:
@@ -27,9 +27,9 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      - ./adguidsync:/opt/app/
+      - ./ad2mosync:/opt/app/
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://adguidsync:8000/metrics"]
+      test: ["CMD", "curl", "-f", "http://ad2mosync:8000/metrics"]
       interval: 15s
       timeout: 5s
       retries: 3
@@ -37,24 +37,6 @@ services:
     depends_on:
       init:
         condition: service_completed_successfully
-
-  init:
-    image: magentaaps/os2mo-init:latest
-    environment:
-      AUTH_SERVER: "http://keycloak:8080/auth"
-
-      MO_URL: "http://mo:5000"
-      CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-
-      LORA_URL: "http://lora:8080"
-      LORA_CLIENT_SECRET: "603f1c82-d012-4d04-9382-dbe659c533fb"
-    networks:
-      - os2mo_default
-    volumes:
-      - type: bind
-        source: ./init.config.yaml
-        target: /config/config.yml
-        read_only: true
 
 networks:
   os2mo_default:

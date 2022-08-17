@@ -2,25 +2,26 @@
 #
 # SPDX-License-Identifier: MPL-2.0
 """Business logic."""
-from datetime import date
 from uuid import UUID
 
 import structlog
-from ramodels.mo.details import ITUser
+from more_itertools import only
 
 from .config import Settings
 from .dataloaders import Dataloaders
 
 
-async def ensure_adguid_itsystem(
+async def ensure_ad2mosynced(
     user_uuid: UUID,
     settings: Settings,
     dataloaders: Dataloaders,
 ) -> bool:
-    """Ensure that an ADGUID IT-system exists in MO for the given user.
+    """Ensure that all AD-to-MO synchronizations are up-to-date.
 
     Args:
-        user_uuid: UUID of the user to ensure existence for.
+        user_uuid: UUID of the user to ensure synchronizations for.
+        settings: Pydantic settings objects.
+        dataloaders: Dataloaders for MO and AD.
 
     Returns:
         None
@@ -42,28 +43,16 @@ async def ensure_adguid_itsystem(
         logger.warn(message)
         raise ValueError(message)
 
-    has_ituser = any(
-        map(lambda ituser: ituser.itsystem_uuid == itsystem_uuid, user.itusers)
+    ituser = only(
+        filter(lambda ituser: ituser.itsystem_uuid == itsystem_uuid, user.itusers)
     )
-    if has_ituser:
-        # TODO: Should we verify its value?
-        logger.info("ITUser already exists")
+    if ituser is None:
+        logger.info("Unable to find ADGUID itsystem on user")
         return False
-
-    adguid = await dataloaders.adguid_loader.load(user.cpr_no)
-    if adguid is None:
-        logger.info("Unable to find ad user by cpr number")
-        return False
+    adguid = ituser.user_key
 
     logger = logger.bind(adguid=adguid)
+    logger.info("Synchronizing user")
+    # TODO: Parse mapping yaml file and pull relevant MO and AD fields?
 
-    ituser = ITUser.from_simplified_fields(
-        user_key=str(adguid),
-        itsystem_uuid=itsystem_uuid,
-        person_uuid=user.uuid,
-        from_date=date.today().isoformat(),
-    )
-    logger.info("Creating ITUser for user")
-    response = await dataloaders.ituser_uploader.load(ituser)
-    logger.debug("Creating ITUser response", response=response)
     return True

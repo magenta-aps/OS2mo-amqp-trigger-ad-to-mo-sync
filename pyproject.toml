@@ -1,14 +1,14 @@
 # SPDX-FileCopyrightText: 2019-2020 Magenta ApS
 # SPDX-License-Identifier: MPL-2.0
 [tool.poetry]
-name = "adguidsync"
+name = "ad2mosync"
 version = "0.1.0"
-description = "OS2mo AMQP Trigger receiver that writes ADGUID to an IT system"
+description = "OS2mo AMQP Trigger receiver that synchronizes data from AD to MO"
 authors = ["Magenta ApS <info@magenta.dk>"]
 license = "MPL-2.0"
 readme = "README.md"
 homepage = "https://magenta.dk/"
-repository = "https://git.magenta.dk/rammearkitektur/os2mo-triggers/os2mo-amqp-trigger-adguid-sync"
+repository = "https://git.magenta.dk/rammearkitektur/os2mo-triggers/OS2mo-amqp-trigger-ad-to-mo-sync"
 keywords = ["os2mo", "amqp"]
 
 [tool.poetry.dependencies]

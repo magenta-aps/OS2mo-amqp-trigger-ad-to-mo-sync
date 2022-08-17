@@ -9,7 +9,7 @@ from collections.abc import Iterator
 
 import pytest
 
-from adguidsync.config import Settings
+from ad2mosync.config import Settings
 
 
 @pytest.fixture
