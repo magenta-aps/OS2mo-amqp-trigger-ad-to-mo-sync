@@ -9,11 +9,12 @@ from typing import Any
 from uuid import UUID
 
 import structlog
-from more_itertools import all_unique
 from more_itertools import only
+from pydantic import parse_obj_as
 from ramodels.mo.details import Address
 
 from .config import ADMapping
+from .config import ADMappingList
 from .config import Settings
 from .dataloaders import Dataloaders
 
@@ -118,12 +119,6 @@ async def ensure_ad2mosynced(
 
     addresses = settings.ad_mappings
 
-    # Verify that address_type_user_key is unique for each type
-    # TODO: This should be verified via a pydantic validator
-    address_type_user_keys = map(attrgetter("mo_address_type_user_key"), addresses)
-    address_type_user_keys = filter(None.__ne__, address_type_user_keys)
-    assert all_unique(address_type_user_keys)
-
     async def fetch_mo_address_type_uuid(entry: ADMapping) -> ADMapping:
         if entry.mo_address_type_uuid is not None:
             return entry
@@ -136,10 +131,10 @@ async def ensure_ad2mosynced(
         return entry.copy(update={"mo_address_type_uuid": uuid})
 
     # TODO: Return a new pydantic model with enforced address_type_uuid here
-    addresses = await gather(*map(fetch_mo_address_type_uuid, addresses))
-
+    addresses = parse_obj_as(
+        ADMappingList, await gather(*map(fetch_mo_address_type_uuid, addresses))
+    )
     address_type_uuids = list(map(attrgetter("mo_address_type_uuid"), addresses))
-    assert all_unique(address_type_uuids)
 
     current_addresses = list(
         filter(

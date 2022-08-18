@@ -4,12 +4,15 @@
 # pylint: disable=unused-argument
 """Test our settings handling."""
 from typing import Any
+from uuid import uuid4
 
 import pytest
 from more_itertools import one
+from pydantic import parse_obj_as
 from pydantic import ValidationError
 
 from ad2mosync.config import ADMapping
+from ad2mosync.config import ADMappingList
 from ad2mosync.config import ServerConfig
 from ad2mosync.config import Settings
 
@@ -122,18 +125,53 @@ def test_admapping() -> None:
     assert "One of 'mo_address_type_user_key'" in str(excinfo.value)
 
 
-def test_admapping_list(
-    load_settings_overrides: dict[str, str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Test that ad_mappings is handled as expected within Settings."""
+def test_admapping_list() -> None:
+    """Test that we can construct an admappinglist with the right arguments."""
     with pytest.raises(ValidationError) as excinfo:
-        Settings(ad_mappings=[])
+        parse_obj_as(ADMappingList, [])
     assert "ensure this value has at least 1 items" in str(excinfo.value)
 
     with pytest.raises(ValidationError) as excinfo:
-        Settings(ad_mappings=[1])
+        parse_obj_as(ADMappingList, [1])
     assert "value is not a valid dict" in str(excinfo.value)
 
     with pytest.raises(ValidationError) as excinfo:
-        Settings(ad_mappings=[{}])
-    assert "ad_mappings -> 0 -> ad_field\n  field required" in str(excinfo.value)
+        parse_obj_as(ADMappingList, [{}])
+    assert "ad_field\n  field required" in str(excinfo.value)
+
+    with pytest.raises(ValidationError) as excinfo:
+        parse_obj_as(
+            ADMappingList,
+            [
+                {
+                    "ad_field": "mail",
+                    "mo_address_type_user_key": "AD-Email",
+                },
+                {
+                    "ad_field": "email",
+                    "mo_address_type_user_key": "AD-Email",
+                },
+            ],
+        )
+    assert "'mo_address_type_user_key' must be unique across entire list." in str(
+        excinfo.value
+    )
+
+    uuid = uuid4()
+    with pytest.raises(ValidationError) as excinfo:
+        parse_obj_as(
+            ADMappingList,
+            [
+                {
+                    "ad_field": "mail",
+                    "mo_address_type_uuid": uuid,
+                },
+                {
+                    "ad_field": "email",
+                    "mo_address_type_uuid": uuid,
+                },
+            ],
+        )
+    assert "'mo_address_type_uuid' must be unique across entire list." in str(
+        excinfo.value
+    )

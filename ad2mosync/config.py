@@ -3,16 +3,23 @@
 # SPDX-License-Identifier: MPL-2.0
 # pylint: disable=too-few-public-methods
 """Settings handling."""
+from collections.abc import Iterator
 from typing import Any
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from fastramqpi.config import Settings as FastRAMQPISettings
+from more_itertools import all_unique
 from pydantic import BaseModel
 from pydantic import BaseSettings
 from pydantic import ConstrainedList
 from pydantic import Field
 from pydantic import root_validator
 from pydantic import SecretStr
+from pydantic.types import T
+
+if TYPE_CHECKING:
+    from pydantic.typing import CallableGenerator
 
 
 class ServerConfig(BaseModel):
@@ -93,6 +100,44 @@ class ADMappingList(ConstrainedList):
 
     item_type = ADMapping
     __args__ = (ADMapping,)
+
+    @classmethod
+    def __get_validators__(cls) -> "CallableGenerator":
+        yield from super().__get_validators__()
+        yield cls.address_types_must_be_unique
+
+    @classmethod
+    def address_types_must_be_unique(cls, values: list[T] | None) -> list[T] | None:
+        """Ensure that user_key is unique accross all submodels."""
+        if values is None:
+            return None
+
+        # If we were not given dicts, let the ADMapping validator handle it
+        all_dict = all(map(lambda val: isinstance(val, dict), values))
+        if not all_dict:
+            return values
+
+        # mypy is too dumb to realize the below is now an invariant
+        addresses: list[dict[str, Any]] = values  # type: ignore
+        address_type_user_keys: Iterator[str | None] = map(
+            lambda address: address.get("mo_address_type_user_key"), addresses
+        )
+        address_type_user_keys = filter(None.__ne__, address_type_user_keys)
+        if all_unique(address_type_user_keys) is False:
+            raise ValueError(
+                "'mo_address_type_user_key' must be unique across entire list."
+            )
+
+        address_type_uuids: Iterator[str | None] = map(
+            lambda address: address.get("mo_address_type_uuid"), addresses
+        )
+        address_type_uuids = filter(None.__ne__, address_type_uuids)
+        if all_unique(address_type_uuids) is False:
+            raise ValueError(
+                "'mo_address_type_uuid' must be unique across entire list."
+            )
+
+        return values
 
 
 class Settings(BaseSettings):
