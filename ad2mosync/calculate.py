@@ -166,9 +166,6 @@ async def ensure_ad2mosynced(
     # Assert uniqueness on existing addresses
     assert len(current_address_map) == len(current_addresses)
 
-    ad_fields = list(map(itemgetter("ad_field"), addresses))
-    # print(ad_fields)
-
     result = await dataloaders.adattribute_loader.load(adguid)
     # print(result)
 

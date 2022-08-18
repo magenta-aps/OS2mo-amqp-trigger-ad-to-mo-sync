@@ -219,7 +219,7 @@ async def load_adattributes(
     attributes: set[str],
     ad_connection: Connection,
     search_base: str,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, Any] | None]:
     """Loads AD attributes from ADGUID (UUID).
 
     Args:
@@ -230,7 +230,7 @@ async def load_adattributes(
     Return:
         List of AD attribute dicts.
     """
-    # Construct our search filter by OR'ing all CPR numbers together
+    # Construct our search filter by OR'ing all the objectGUIDs together
     guid_conditions = "".join(map(lambda guid: f"(objectGUID={guid})", keys))
     search_filter = "(&(objectclass=user)(|" + guid_conditions + "))"
 

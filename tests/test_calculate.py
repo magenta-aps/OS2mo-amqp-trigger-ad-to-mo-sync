@@ -12,7 +12,7 @@ from uuid import UUID
 from uuid import uuid4
 
 import pytest
-from ramodels.mo.details import ITUser as RAITUser
+from ramodels.mo.details import Address as RAAddress
 from strawberry.dataloader import DataLoader
 from structlog.testing import capture_logs
 
@@ -21,18 +21,6 @@ from ad2mosync.config import Settings
 from ad2mosync.dataloaders import Dataloaders
 from ad2mosync.dataloaders import ITUser
 from ad2mosync.dataloaders import User
-
-
-async def load_itsystems(keys: list[str]) -> list[UUID | None]:
-    """NOOP Implementation of load_itsystems.
-
-    Args:
-        keys: List of ITSystem user-keys.
-
-    Return:
-        List of Nones
-    """
-    return [None] * len(keys)
 
 
 async def load_users(keys: list[UUID]) -> list[User | None]:
@@ -47,11 +35,11 @@ async def load_users(keys: list[UUID]) -> list[User | None]:
     return [None] * len(keys)
 
 
-async def load_adguid(keys: list[str]) -> list[UUID | None]:
-    """NOOP Implementation of load_adguid.
+async def load_itsystems(keys: list[str]) -> list[UUID | None]:
+    """NOOP Implementation of load_itsystems.
 
     Args:
-        keys: List of CPR numbers.
+        keys: List of ITSystem user-keys.
 
     Return:
         List of Nones
@@ -59,11 +47,35 @@ async def load_adguid(keys: list[str]) -> list[UUID | None]:
     return [None] * len(keys)
 
 
-async def upload_itusers(keys: list[RAITUser]) -> list[Any | None]:
-    """NOOP Implementation of upload_itusers.
+async def load_classes(keys: list[str]) -> list[UUID | None]:
+    """NOOP Implementation of load_classes.
 
     Args:
-        keys: List of RAITUser objects.
+        keys: List of ADGUIDs.
+
+    Return:
+        List of Nones
+    """
+    return [None] * len(keys)
+
+
+async def load_adattributes(keys: list[UUID]) -> list[dict[str, Any] | None]:
+    """NOOP Implementation of load_adattributes.
+
+    Args:
+        keys: List of ADGUIDs.
+
+    Return:
+        List of Nones
+    """
+    return [None] * len(keys)
+
+
+async def upload_addresses(keys: list[RAAddress]) -> list[Any | None]:
+    """NOOP Implementation of upload_addresses.
+
+    Args:
+        keys: List of RAAddress objects.
 
     Return:
         List of Nones
@@ -81,8 +93,9 @@ def dataloaders() -> Iterator[Dataloaders]:
     dataloaders = Dataloaders(
         users_loader=DataLoader(load_fn=load_users),
         itsystems_loader=DataLoader(load_fn=load_itsystems),
-        adguid_loader=DataLoader(load_fn=load_adguid),
-        ituser_uploader=DataLoader(load_fn=upload_itusers),
+        classes_loader=DataLoader(load_fn=load_classes),
+        adattribute_loader=DataLoader(load_fn=load_adattributes),
+        address_uploader=DataLoader(load_fn=upload_addresses),
     )
     yield dataloaders
 
@@ -141,6 +154,7 @@ async def test_ensure_ad2mosync_user_and_ituser_found(
     loader_func = AsyncMock()
     loader_func.return_value = [
         User(
+            addresses=[],
             itusers=[
                 ITUser(itsystem_uuid=adguid_it_system_uuid, user_key=str(ad_guid))
             ],
@@ -150,19 +164,27 @@ async def test_ensure_ad2mosync_user_and_ituser_found(
     dataloaders.users_loader = DataLoader(load_fn=loader_func)
 
     with capture_logs() as captured_logs:
-        result = await ensure_ad2mosynced(
-            user_uuid,
-            settings,
-            dataloaders,
-        )
-        assert result is True
+        with pytest.raises(ValueError) as exc_info:
+            await ensure_ad2mosynced(
+                user_uuid,
+                settings,
+                dataloaders,
+            )
+    assert "Unable to find class by user-key" in str(exc_info.value)
     assert captured_logs == [
         {
             "event": "Synchronizing user",
             "log_level": "info",
             "user_uuid": user_uuid,
-            "adguid": str(ad_guid),
-        }
+            "adguid": ad_guid,
+        },
+        {
+            "event": "Unable to find class by user-key",
+            "log_level": "warning",
+            "user_uuid": user_uuid,
+            "adguid": ad_guid,
+            "mo_address_type_user_key": "AD-EmailEmployee",
+        },
     ]
 
 
@@ -183,6 +205,7 @@ async def test_ensure_ad2mosync_user_found_ituser_not_found(
     loader_func.return_value = [
         User(
             itusers=[],
+            addresses=[],
             uuid=user_uuid,
         )
     ]

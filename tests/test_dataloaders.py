@@ -76,16 +76,16 @@ def dataloaders(
     yield dataloaders
 
 
-async def test_upload_itusers(
+async def test_upload_addresses(
     model_client: AsyncMock, dataloaders: Dataloaders
 ) -> None:
-    """Test that upload_itusers works as expected."""
+    """Test that upload_addresses works as expected."""
     model_client.upload.return_value = ["1", None, "3"]
 
     results = await asyncio.gather(
-        dataloaders.ituser_uploader.load(1),
-        dataloaders.ituser_uploader.load(2),
-        dataloaders.ituser_uploader.load(3),
+        dataloaders.address_uploader.load(1),
+        dataloaders.address_uploader.load(2),
+        dataloaders.address_uploader.load(3),
     )
     assert results == ["1", None, "3"]
     model_client.upload.assert_called_with([1, 2, 3])
@@ -95,19 +95,20 @@ async def test_load_adguid(ad_connection: MagicMock, dataloaders: Dataloaders) -
     """Test that load_adguid works as expected."""
     uuid1 = uuid4()
     uuid2 = uuid4()
+    uuid3 = uuid4()
     ad_connection.response_to_json.return_value = json.dumps(
         {
             "entries": [
                 {
                     "attributes": {
-                        "extensionAttribute3": "0101690420",
+                        "mail": "hanne@example.com",
                         "objectGUID": f"{str(uuid2)}",
                     },
                     "dn": "CN=Hanne Efternavn,OU=...,DC=Kommune,DC=net",
                 },
                 {
                     "attributes": {
-                        "extensionAttribute3": "0101709999",
+                        "mail": "john@example.com",
                         "objectGUID": f"{str(uuid1)}",
                     },
                     "dn": "CN=John Efternavn,OU=...,DC=Kommune,DC=net",
@@ -117,25 +118,33 @@ async def test_load_adguid(ad_connection: MagicMock, dataloaders: Dataloaders) -
     )
 
     results = await asyncio.gather(
-        dataloaders.adguid_loader.load("1212121212"),
-        dataloaders.adguid_loader.load("0101709999"),
-        dataloaders.adguid_loader.load("1111111111"),
-        dataloaders.adguid_loader.load("0101690420"),
+        dataloaders.adattribute_loader.load(uuid1),
+        dataloaders.adattribute_loader.load(uuid2),
+        dataloaders.adattribute_loader.load(uuid3),
     )
-    assert results == [None, uuid1, None, uuid2]
+    assert results == [
+        {
+            "mail": "john@example.com",
+            "objectGUID": f"{str(uuid1)}",
+        },
+        {
+            "mail": "hanne@example.com",
+            "objectGUID": f"{str(uuid2)}",
+        },
+        None,
+    ]
     ad_connection.response_to_json.assert_called_with()
     ad_connection.search.assert_called_with(
         search_base="OU=Fiktiv kommune,DC=fiktiv,DC=net",
         search_filter=(
             "(&(objectclass=user)(|"
-            "(extensionAttribute3=1212121212)"
-            "(extensionAttribute3=0101709999)"
-            "(extensionAttribute3=1111111111)"
-            "(extensionAttribute3=0101690420)"
+            f"(objectGUID={str(uuid1)})"
+            f"(objectGUID={str(uuid2)})"
+            f"(objectGUID={str(uuid3)})"
             "))"
         ),
         search_scope="SUBTREE",
-        attributes=["extensionAttribute3", "objectGUID"],
+        attributes={"objectGUID", "*"},
     )
 
 
@@ -171,6 +180,7 @@ async def test_load_users(graphql_session: AsyncMock, dataloaders: Dataloaders) 
                         "user_key": "JohnDeere",
                         "cpr_no": "0101709999",
                         "itusers": [],
+                        "addresses": [],
                     }
                 ]
             }
@@ -184,7 +194,9 @@ async def test_load_users(graphql_session: AsyncMock, dataloaders: Dataloaders) 
         dataloaders.users_loader.load(uuid3),
         dataloaders.users_loader.load(uuid2),
     )
-    ituser = User(uuid=uuid2, user_key="JohnDeere", cpr_no="0101709999", itusers=[])
+    ituser = User(
+        uuid=uuid2, user_key="JohnDeere", cpr_no="0101709999", itusers=[], addresses=[]
+    )
     assert results == [None, ituser, None, None, ituser]
     call = one(graphql_session.execute.mock_calls)
     assert call.kwargs == {
