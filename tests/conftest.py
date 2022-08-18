@@ -26,6 +26,7 @@ def settings_overrides() -> Iterator[dict[str, str]]:
         "AD_PASSWORD": "Hunter2",
         "AD_CPR_ATTRIBUTE": "extensionAttribute3",
         "AD_SEARCH_BASE": "OU=Fiktiv kommune,DC=fiktiv,DC=net",
+        "AD_MAPPINGS": '[{"ad_field": "mail", "mo_address_type_user_key": "AD-Email"}]',
     }
     yield overrides
 

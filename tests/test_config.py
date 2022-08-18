@@ -9,6 +9,7 @@ import pytest
 from more_itertools import one
 from pydantic import ValidationError
 
+from ad2mosync.config import ADMapping
 from ad2mosync.config import ServerConfig
 from ad2mosync.config import Settings
 
@@ -27,6 +28,7 @@ from ad2mosync.config import Settings
                 "ad_password",
                 "ad_cpr_attribute",
                 "ad_search_base",
+                "ad_mappings",
             ],
         ),
         (
@@ -39,6 +41,7 @@ from ad2mosync.config import Settings
                 "ad_password",
                 "ad_cpr_attribute",
                 "ad_search_base",
+                "ad_mappings",
             ],
         ),
     ],
@@ -76,7 +79,7 @@ def test_minimal_overrides(
         monkeypatch.setenv(key, value)
 
 
-def test_happy_path_server_config(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_happy_path_server_config() -> None:
     """Test that we can construct a server config object with the right arguments."""
     overrides = {"host": "localhost"}
     ServerConfig(**overrides)
@@ -97,3 +100,40 @@ def test_happy_path(settings: Settings) -> None:
     ad_controller = one(settings.ad_controllers)
     assert ad_controller.host == "localhost"
     assert ad_controller.port is None
+
+    ad_mapping = one(settings.ad_mappings)
+    assert ad_mapping.ad_field == "mail"
+    assert ad_mapping.mo_address_type_uuid is None
+
+
+def test_admapping() -> None:
+    """Test that we can construct an admapping with the right arguments."""
+    overrides = {"ad_field": "mail", "mo_address_type_user_key": "AD-Email"}
+    ADMapping(**overrides)
+
+    with pytest.raises(ValidationError) as excinfo:
+        # mypy complains about the missing arguments here, so we silence it
+        ADMapping()  # type: ignore
+    assert "ad_field\n  field required (type=value_error.missing)" in str(excinfo.value)
+
+    with pytest.raises(ValidationError) as excinfo:
+        # mypy complains about the missing arguments here, so we silence it
+        ADMapping(ad_field="mail")  # type: ignore
+    assert "One of 'mo_address_type_user_key'" in str(excinfo.value)
+
+
+def test_admapping_list(
+    load_settings_overrides: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Test that ad_mappings is handled as expected within Settings."""
+    with pytest.raises(ValidationError) as excinfo:
+        Settings(ad_mappings=[])
+    assert "ensure this value has at least 1 items" in str(excinfo.value)
+
+    with pytest.raises(ValidationError) as excinfo:
+        Settings(ad_mappings=[1])
+    assert "value is not a valid dict" in str(excinfo.value)
+
+    with pytest.raises(ValidationError) as excinfo:
+        Settings(ad_mappings=[{}])
+    assert "ad_mappings -> 0 -> ad_field\n  field required" in str(excinfo.value)

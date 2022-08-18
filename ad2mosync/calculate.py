@@ -4,7 +4,7 @@
 """Business logic."""
 from asyncio import gather
 from datetime import date
-from operator import itemgetter
+from operator import attrgetter
 from typing import Any
 from uuid import UUID
 
@@ -13,6 +13,7 @@ from more_itertools import all_unique
 from more_itertools import only
 from ramodels.mo.details import Address
 
+from .config import ADMapping
 from .config import Settings
 from .dataloaders import Dataloaders
 
@@ -115,42 +116,29 @@ async def ensure_ad2mosynced(
     logger = logger.bind(adguid=adguid)
     logger.info("Synchronizing user")
 
-    addresses = [
-        # TODO: Add support for visibility?
-        {
-            "ad_field": "mail",
-            "mo_address_type_user_key": "AD-EmailEmployee",
-            # "mo_address_type_uuid": UUID("162cb99a-e142-4fb1-a3ed-dc5f6eaf2775"),
-        },
-        #        {
-        #            "ad_field": "mobile",
-        #            "mo_address_type_user_key": "AD-Mobil",
-        #        }
-    ]
+    addresses = settings.ad_mappings
 
     # Verify that address_type_user_key is unique for each type
     # TODO: This should be verified via a pydantic validator
-    address_type_user_keys = map(
-        lambda address: address.get("mo_address_type_user_key"), addresses
-    )
+    address_type_user_keys = map(attrgetter("mo_address_type_user_key"), addresses)
     address_type_user_keys = filter(None.__ne__, address_type_user_keys)
     assert all_unique(address_type_user_keys)
 
-    async def fetch_mo_address_type_uuid(entry):
-        if "mo_address_type_uuid" in entry:
+    async def fetch_mo_address_type_uuid(entry: ADMapping) -> ADMapping:
+        if entry.mo_address_type_uuid is not None:
             return entry
-        user_key = entry["mo_address_type_user_key"]
+        user_key = entry.mo_address_type_user_key
         uuid = await dataloaders.classes_loader.load(user_key)
         if uuid is None:
             message = "Unable to find class by user-key"
             logger.warn(message, mo_address_type_user_key=user_key)
             raise ValueError(message)
-        return {**entry, "mo_address_type_uuid": uuid}
+        return entry.copy(update={"mo_address_type_uuid": uuid})
 
     # TODO: Return a new pydantic model with enforced address_type_uuid here
     addresses = await gather(*map(fetch_mo_address_type_uuid, addresses))
 
-    address_type_uuids = list(map(itemgetter("mo_address_type_uuid"), addresses))
+    address_type_uuids = list(map(attrgetter("mo_address_type_uuid"), addresses))
     assert all_unique(address_type_uuids)
 
     current_addresses = list(

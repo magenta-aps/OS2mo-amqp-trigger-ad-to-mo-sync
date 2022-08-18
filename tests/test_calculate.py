@@ -183,7 +183,7 @@ async def test_ensure_ad2mosync_user_and_ituser_found(
             "log_level": "warning",
             "user_uuid": user_uuid,
             "adguid": ad_guid,
-            "mo_address_type_user_key": "AD-EmailEmployee",
+            "mo_address_type_user_key": "AD-Email",
         },
     ]
 
