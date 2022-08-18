@@ -5,6 +5,7 @@
 from asyncio import gather
 from datetime import date
 from operator import itemgetter
+from typing import Any
 from uuid import UUID
 
 import structlog
@@ -21,7 +22,7 @@ async def insert(
     write_address_map: dict[UUID, str],
     user_uuid: UUID,
     dataloaders: Dataloaders,
-):
+) -> list[Any | None]:
     insert_addresses = []
     for uuid in to_insert:
         insert_addresses.append(
@@ -34,7 +35,7 @@ async def insert(
         )
 
     if not insert_addresses:
-        return None
+        return []
 
     response = await dataloaders.address_uploader.load_many(insert_addresses)
     return response
@@ -46,7 +47,7 @@ async def edit(
     current_addresses: list,
     user_uuid: UUID,
     dataloaders: Dataloaders,
-):
+) -> list[Any | None]:
     current_address_map = {
         address.address_type_uuid: address for address in current_addresses
     }
@@ -65,7 +66,7 @@ async def edit(
         )
 
     if not edit_addresses:
-        return None
+        return []
 
     response = await dataloaders.address_uploader.load_many(edit_addresses)
     return response
