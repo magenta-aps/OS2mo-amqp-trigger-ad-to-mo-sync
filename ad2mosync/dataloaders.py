@@ -17,8 +17,8 @@ from gql.client import AsyncClientSession
 from ldap3 import Connection
 from more_itertools import one
 from more_itertools import unzip
-from pydantic import Field
 from pydantic import BaseModel
+from pydantic import Field
 from pydantic import parse_obj_as
 from raclients.modelclient.mo import ModelClient
 from ramodels.mo.details import Address as RAAddress
@@ -175,9 +175,7 @@ async def load_classes(
     return [classes_map.get(key) for key in keys]
 
 
-def ad_response_to_cpr_uuid_map(
-    ad_response: dict[str, Any]
-) -> dict[UUID, Any]:
+def ad_response_to_cpr_uuid_map(ad_response: dict[str, Any]) -> dict[UUID, Any]:
     """Convert our AD Response to a UUID-->dictionary mapping.
 
     Example input:
