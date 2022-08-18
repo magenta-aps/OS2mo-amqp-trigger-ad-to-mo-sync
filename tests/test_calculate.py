@@ -116,7 +116,6 @@ async def test_ensure_ad2mosync(
             "event": "Unable to find itsystem by user-key",
             "log_level": "warning",
             "itsystem_user_key": "ADGUID",
-            "user_uuid": user_uuid,
         }
     ]
 

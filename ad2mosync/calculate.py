@@ -12,6 +12,7 @@ import structlog
 from more_itertools import only
 from pydantic import parse_obj_as
 from ramodels.mo.details import Address
+from strawberry.dataloader import DataLoader
 
 from .config import ADMapping
 from .config import ADMappingList
@@ -74,6 +75,36 @@ async def edit(
     return response
 
 
+async def get_itsystem_uuid(
+    itsystem_user_key: str,
+    itsystem_uuid: UUID | None,
+    itsystems_loader: DataLoader,
+) -> UUID:
+    """Get the ADGUID ITSystem UUID.
+
+    Args:
+        itsystem_user_key: User-key for the ITSystem to load.
+        itsystem_uuid: UUID for the ITSystem to load.
+        itsystems_loader: Dataloader to load ITSystems from MO.
+
+    Raises:
+        ValueError: If unable to find itsystem by user-key.
+
+    Returns:
+        UUID of the ADGUID ITSystem
+    """
+    if itsystem_uuid is not None:
+        return itsystem_uuid
+
+    itsystem_uuid = await itsystems_loader.load(itsystem_user_key)
+    if itsystem_uuid is None:
+        message = "Unable to find itsystem by user-key"
+        logger = structlog.get_logger()
+        logger.warn(message, itsystem_user_key=itsystem_user_key)
+        raise ValueError(message)
+    return itsystem_uuid
+
+
 async def ensure_ad2mosynced(
     user_uuid: UUID,
     settings: Settings,
@@ -91,14 +122,11 @@ async def ensure_ad2mosynced(
     """
     logger = structlog.get_logger().bind(user_uuid=user_uuid)
 
-    itsystem_uuid = settings.adguid_itsystem_uuid
-    itsystem_user_key = settings.adguid_itsystem_user_key
-    if itsystem_uuid is None:
-        itsystem_uuid = await dataloaders.itsystems_loader.load(itsystem_user_key)
-        if itsystem_uuid is None:
-            message = "Unable to find itsystem by user-key"
-            logger.warn(message, itsystem_user_key=itsystem_user_key)
-            raise ValueError(message)
+    itsystem_uuid = await get_itsystem_uuid(
+        settings.adguid_itsystem_user_key,
+        settings.adguid_itsystem_uuid,
+        dataloaders.itsystems_loader,
+    )
 
     user = await dataloaders.users_loader.load(user_uuid)
     if user is None:
