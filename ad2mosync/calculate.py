@@ -4,8 +4,8 @@
 """Business logic."""
 from asyncio import gather
 from datetime import date
+from itertools import chain
 from operator import attrgetter
-from typing import Any
 from uuid import UUID
 
 import structlog
@@ -20,12 +20,21 @@ from .config import Settings
 from .dataloaders import Dataloaders
 
 
-async def insert(
+def construct_insert_addresses(
     to_insert: set[UUID],
     write_address_map: dict[UUID, str],
     user_uuid: UUID,
-    dataloaders: Dataloaders,
-) -> list[Any | None]:
+) -> list[Address]:
+    """Construct addresses to be inserted.
+
+    Args:
+        to_insert: UUID of address_type for address to be inserted.
+        write_address_map: Map of information to construct insert addresses with.
+        user_uuid: The user to insert addresses for.
+
+    Returns:
+        List of Address objects to be inserted.
+    """
     insert_addresses = []
     for uuid in to_insert:
         insert_addresses.append(
@@ -36,21 +45,26 @@ async def insert(
                 person_uuid=user_uuid,
             )
         )
-
-    if not insert_addresses:
-        return []
-
-    response = await dataloaders.address_uploader.load_many(insert_addresses)
-    return response
+    return insert_addresses
 
 
-async def edit(
+def construct_edit_addresses(
     to_edit: set[UUID],
     write_address_map: dict[UUID, str],
     current_addresses: list,
     user_uuid: UUID,
-    dataloaders: Dataloaders,
-) -> list[Any | None]:
+) -> list[Address]:
+    """Construct addresses to be edited.
+
+    Args:
+        to_edit: UUID of address_type for address to be edited.
+        write_address_map: Map of information to construct edit addresses with.
+        current_addresses: List of current addresses for the user.
+        user_uuid: The user to edit addresses for.
+
+    Returns:
+        List of Address objects to be edited.
+    """
     current_address_map = {
         address.address_type_uuid: address for address in current_addresses
     }
@@ -67,12 +81,7 @@ async def edit(
                 person_uuid=user_uuid,
             )
         )
-
-    if not edit_addresses:
-        return []
-
-    response = await dataloaders.address_uploader.load_many(edit_addresses)
-    return response
+    return edit_addresses
 
 
 async def get_itsystem_uuid(
@@ -208,14 +217,18 @@ async def ensure_ad2mosynced(
     print("EDIT", to_edit)
     print("DELETE", to_delete)
 
-    insert_task = insert(to_insert, write_address_map, user_uuid, dataloaders)
-    edit_task = edit(
-        to_edit, write_address_map, current_addresses, user_uuid, dataloaders
+    insert_addresses = construct_insert_addresses(
+        to_insert, write_address_map, user_uuid
     )
-    # delete_task = delete(to_delete, write_address_map, current_address_map)
+    edit_addresses = construct_edit_addresses(
+        to_edit, write_address_map, current_addresses, user_uuid
+    )
+    # TODO: Handle DELETE
 
-    results = await gather(insert_task, edit_task)  # , delete_task)
-    print(results)
+    upsert_addresses = list(chain(insert_addresses, edit_addresses))
+    if not upsert_addresses:
+        return False
 
-    # print(address_writes)
+    response = await dataloaders.address_uploader.load_many(upsert_addresses)
+    print(response)
     return True
