@@ -115,7 +115,7 @@ async def test_ensure_ad2mosync(
         {
             "event": "Unable to find itsystem by user-key",
             "log_level": "warning",
-            "itsystem_user_key": "ADGUID",
+            "user_key": "ADGUID",
         }
     ]
 
@@ -180,9 +180,7 @@ async def test_ensure_ad2mosync_user_and_ituser_found(
         {
             "event": "Unable to find class by user-key",
             "log_level": "warning",
-            "user_uuid": user_uuid,
-            "adguid": ad_guid,
-            "mo_address_type_user_key": "AD-Email",
+            "user_key": "AD-Email",
         },
     ]
 

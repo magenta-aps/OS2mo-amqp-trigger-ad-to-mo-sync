@@ -84,6 +84,46 @@ def construct_edit_addresses(
     return edit_addresses
 
 
+async def ensure_mo_address_type_uuids(
+    mappings: ADMappingList,
+    classes_loader: DataLoader,
+) -> ADMappingList:
+    """Ensure that APMappingList only contains entries with mo_address_type_uuid set.
+
+    If entries without mo_address_type_uuid exists in the input, the uuids are fetched
+    via the user-keys from MO.
+
+    Args:
+        mappings: Mapping list with elements that may not have mo_address_type_uuid set.
+        classes_loader: Dataloader to load class UUIDs from MO by user-key.
+
+    Raises:
+        ValueError: If unable to find class by user-key.
+
+    Returns:
+        mappings: Mapping list with elements that have mo_address_type_uuid set.
+    """
+
+    async def fetch_mo_address_type_uuid(entry: ADMapping) -> ADMapping:
+        if entry.mo_address_type_uuid is not None:
+            return entry
+        user_key = entry.mo_address_type_user_key
+        uuid = await classes_loader.load(user_key)
+        if uuid is None:
+            message = "Unable to find class by user-key"
+            logger = structlog.get_logger()
+            logger.warn(message, user_key=user_key)
+            raise ValueError(message)
+        return entry.copy(update={"mo_address_type_uuid": uuid})
+
+    # TODO: Consider having a ADMappingList with a submodel that has a non-optional
+    #       mo_address_type_uuid field on it.
+    ensured_mappings = parse_obj_as(
+        ADMappingList, await gather(*map(fetch_mo_address_type_uuid, mappings))
+    )
+    return ensured_mappings
+
+
 async def get_itsystem_uuid(
     itsystem_user_key: str,
     itsystem_uuid: UUID | None,
@@ -109,7 +149,7 @@ async def get_itsystem_uuid(
     if itsystem_uuid is None:
         message = "Unable to find itsystem by user-key"
         logger = structlog.get_logger()
-        logger.warn(message, itsystem_user_key=itsystem_user_key)
+        logger.warn(message, user_key=itsystem_user_key)
         raise ValueError(message)
     return itsystem_uuid
 
@@ -154,24 +194,11 @@ async def ensure_ad2mosynced(
     logger = logger.bind(adguid=adguid)
     logger.info("Synchronizing user")
 
-    addresses = settings.ad_mappings
-
-    async def fetch_mo_address_type_uuid(entry: ADMapping) -> ADMapping:
-        if entry.mo_address_type_uuid is not None:
-            return entry
-        user_key = entry.mo_address_type_user_key
-        uuid = await dataloaders.classes_loader.load(user_key)
-        if uuid is None:
-            message = "Unable to find class by user-key"
-            logger.warn(message, mo_address_type_user_key=user_key)
-            raise ValueError(message)
-        return entry.copy(update={"mo_address_type_uuid": uuid})
-
-    # TODO: Return a new pydantic model with enforced address_type_uuid here
-    addresses = parse_obj_as(
-        ADMappingList, await gather(*map(fetch_mo_address_type_uuid, addresses))
+    mappings = await ensure_mo_address_type_uuids(
+        settings.ad_mappings, dataloaders.classes_loader
     )
-    address_type_uuids = list(map(attrgetter("mo_address_type_uuid"), addresses))
+
+    address_type_uuids = list(map(attrgetter("mo_address_type_uuid"), mappings))
 
     current_addresses = list(
         filter(
@@ -191,8 +218,7 @@ async def ensure_ad2mosynced(
     # print(result)
 
     write_address_map = {
-        address["mo_address_type_uuid"]: result[address["ad_field"]]
-        for address in addresses
+        mapping.mo_address_type_uuid: result[mapping.ad_field] for mapping in mappings
     }
 
     print(current_address_map)
